@@ -1,0 +1,1245 @@
+================================================================================
+RAPPORT POUR DIAGRAMME DE CAS D'UTILISATION — ERP GESTION PHARMACEUTIQUE
+================================================================================
+Date : 3 septembre 2026
+Objectif : Fournir toutes les informations nécessaires pour créer le diagramme de cas d'utilisation avec draw.io
+
+================================================================================
+1. ACTEURS (RÔLES UTILISATEURS)
+================================================================================
+
+Acteur 1 : ADMINISTRATEUR
+- Code rôle : ADMIN / ADMINISTRATEUR
+- ID rôle : 1
+- Description : Administrateur système avec accès total
+- Permissions : Toutes les permissions du système
+- Accès : Dashboard admin, gestion utilisateurs, gestion rôles, audit, statistiques globales
+
+Acteur 2 : ASSISTANT
+- Code rôle : ASSISTANT
+- ID rôle : 3
+- Description : Assistant polyvalent avec accès à plusieurs modules
+- Permissions : Ventes, caisse, stock, clients, commandes, inventaire
+- Accès : Dashboard assistant, vente session, commandes, annulation, arrêt caisse, facturation
+
+Acteur 3 : CHARGE DE COMMANDE
+- Code rôle : CHARGE_COMMANDE / CHARGE_DE_COMMANDE
+- ID rôle : 4
+- Description : Responsable des commandes fournisseurs et stock
+- Permissions : Stock, commandes fournisseurs, réception, fournisseurs
+- Accès : Dashboard commande, saisie commande, réception, historique
+
+Acteur 4 : VENDEUR
+- Code rôle : VENDEUR
+- ID rôle : 2
+- Description : Vendeur au point de vente
+- Permissions : Ventes, clients (lecture), stock (lecture)
+- Accès : Module vente, création vente, impression ticket
+
+Acteur 5 : COMPTABLE
+- Code rôle : COMPTABLE
+- ID rôle : 5
+- Description : Comptable pour la gestion comptable
+- Permissions : Comptabilité, plan comptable, journaux, états financiers
+- Accès : Module comptabilité, plan comptable, journaux, balance, bilan
+
+================================================================================
+2. CAS D'UTILISATION PAR MODULE
+================================================================================
+
+MODULE 1 : AUTHENTIFICATION
+----------------------------
+UC 1.1 : Se connecter
+- Description : Connexion utilisateur au système
+- Acteurs : TOUS (ADMIN, ASSISTANT, CHARGE_COMMANDE, VENDEUR, COMPTABLE)
+- Route : GET /login, POST /login/auth
+- Contrôleur : AuthController
+
+UC 1.2 : Se déconnecter
+- Description : Déconnexion utilisateur
+- Acteurs : TOUS (ADMIN, ASSISTANT, CHARGE_COMMANDE, VENDEUR, COMPTABLE)
+- Route : GET /logout
+- Contrôleur : AuthController
+
+UC 1.3 : Se connecter module vente
+- Description : Connexion spécifique au module vente
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /vente/login, POST /vente/login/auth
+- Contrôleur : VenteAuthController
+
+MODULE 2 : GESTION DES VENTES
+------------------------------
+UC 2.1 : Consulter dashboard ventes
+- Description : Afficher le dashboard des ventes avec statistiques
+- Acteurs : VENDEUR, ASSISTANT, ADMIN
+- Route : GET /vente, GET /vente/dashboard
+- Contrôleur : VenteController
+- Permission : vente.view
+
+UC 2.2 : Créer une vente
+- Description : Créer une nouvelle vente avec produits, quantités, remises
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /vente/create, POST /vente/store
+- Contrôleur : VenteController
+- Permission : vente.create
+
+UC 2.3 : Consulter historique des ventes
+- Description : Voir l'historique des ventes
+- Acteurs : VENDEUR, ASSISTANT, ADMIN
+- Route : GET /vente/historique
+- Contrôleur : VenteController
+- Permission : vente.view
+
+UC 2.4 : Annuler une vente
+- Description : Annuler une vente existante
+- Acteurs : VENDEUR, ASSISTANT, ADMIN
+- Route : POST /vente/cancel-ticket
+- Contrôleur : VenteController
+- Permission : vente.cancel
+
+UC 2.5 : Suspendre un ticket
+- Description : Suspendre un ticket en attente
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /vente/tickets-en-attente
+- Contrôleur : VenteController
+- Permission : vente.create
+
+UC 2.6 : Reprendre un ticket suspendu
+- Description : Reprendre un ticket suspendu
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /vente/reprendre
+- Contrôleur : VenteController
+- Permission : vente.create
+
+UC 2.7 : Imprimer un ticket/facture
+- Description : Imprimer le ticket ou la facture
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /vente/impression
+- Contrôleur : VenteController
+- Permission : vente.view
+
+UC 2.8 : Rechercher produits
+- Description : Recherche globale de produits
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /recherche-globale
+- Contrôleur : VenteController
+- Permission : vente.view
+
+MODULE 3 : GESTION DES CLIENTS
+------------------------------
+UC 3.1 : Consulter liste des clients
+- Description : Afficher la liste des clients
+- Acteurs : ADMIN, ASSISTANT, VENDEUR, COMPTABLE
+- Route : GET /clients
+- Contrôleur : ClientController
+- Permission : client.view
+
+UC 3.2 : Créer un client
+- Description : Créer un nouveau client
+- Acteurs : ADMIN, ASSISTANT, VENDEUR
+- Route : GET /clients/create, POST /clients
+- Contrôleur : ClientController
+- Permission : client.create
+
+UC 3.3 : Modifier un client
+- Description : Modifier les informations d'un client
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /clients/{id}/edit, POST /clients/{id}
+- Contrôleur : ClientController
+- Permission : client.edit
+
+UC 3.4 : Consulter fiche client
+- Description : Voir les détails d'un client
+- Acteurs : ADMIN, ASSISTANT, VENDEUR, COMPTABLE
+- Route : GET /clients/{id}
+- Contrôleur : ClientController
+- Permission : client.view
+
+UC 3.5 : Rechercher un client
+- Description : Rechercher un client par critères
+- Acteurs : ADMIN, ASSISTANT, VENDEUR
+- Route : GET /clients/search
+- Contrôleur : ClientController
+- Permission : client.view
+
+UC 3.6 : Voir les débiteurs
+- Description : Voir la liste des clients débiteurs
+- Acteurs : ADMIN, ASSISTANT, COMPTABLE
+- Route : GET /clients/debiteurs
+- Contrôleur : ClientController
+- Permission : client.view
+
+UC 3.7 : Consulter statistiques clients
+- Description : Voir les statistiques des clients
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /clients/statistiques
+- Contrôleur : ClientController
+- Permission : client.view
+
+UC 3.8 : Exporter les clients
+- Description : Exporter la liste des clients
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /clients/export
+- Contrôleur : ClientController
+- Permission : client.view
+
+UC 3.9 : Désactiver un client
+- Description : Désactiver un client
+- Acteurs : ADMIN, ASSISTANT
+- Route : POST /clients/{id}/deactivate
+- Contrôleur : ClientController
+- Permission : client.edit
+
+UC 3.10 : Vérifier plafond crédit
+- Description : Vérifier le plafond de crédit d'un client
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /clients/{id}/check-credit
+- Contrôleur : ClientController
+- Permission : vente.create
+
+MODULE 4 : GESTION DU STOCK
+----------------------------
+UC 4.1 : Consulter dashboard stock
+- Description : Afficher le dashboard stock et approvisionnement
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE, VENDEUR, COMPTABLE
+- Route : GET /stock, GET /stock/index
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.2 : Consulter disponibilité stock
+- Description : Voir la disponibilité du stock
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE, VENDEUR, COMPTABLE
+- Route : GET /stock/disponibilite
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.3 : Consulter alertes stock
+- Description : Voir les alertes de stock
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/alerts
+- Contrôleur : StockAlertController
+- Permission : stock.view
+
+UC 4.4 : Ajouter un produit
+- Description : Ajouter un nouveau produit au stock
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/ajouter, POST /stock/ajouter
+- Contrôleur : StockController
+- Permission : stock.manage
+
+UC 4.5 : Entrée directe de stock
+- Description : Entrée directe de stock sans commande
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : POST /stock/entree-directe
+- Contrôleur : StockController
+- Permission : stock.manage
+
+UC 4.6 : Sortie de stock
+- Description : Sortie manuelle de stock
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : POST /stock/sortie
+- Contrôleur : StockController
+- Permission : stock.manage
+
+UC 4.7 : Ajustement de stock
+- Description : Ajuster le stock
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/ajustement, POST /stock/ajustement
+- Contrôleur : StockController
+- Permission : stock.manage
+
+UC 4.8 : Consulter mouvements de stock
+- Description : Voir les mouvements de stock
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/mouvements
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.9 : Consulter péremptions
+- Description : Voir les produits proches de la péremption
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/peremptions
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.10 : Traiter produits périmés
+- Description : Traiter les produits périmés
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : POST /stock/traiter-perimes
+- Contrôleur : StockController
+- Permission : stock.manage
+
+UC 4.11 : Consulter historique des prix
+- Description : Voir l'historique des prix
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/historique-prix
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.12 : Modifier un produit
+- Description : Modifier les informations d'un produit
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/modifier/{id}, POST /stock/modifier/{id}
+- Contrôleur : StockController
+- Permission : stock.manage
+
+UC 4.13 : Consulter détails produit
+- Description : Voir les détails d'un produit
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE, VENDEUR
+- Route : GET /stock/details
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.14 : Ajouter un fournisseur
+- Description : Ajouter un nouveau fournisseur
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /fournisseurs/ajouter, POST /fournisseurs/store
+- Contrôleur : StockController
+- Permission : stock.manage
+
+UC 4.15 : Consulter liste des fournisseurs
+- Description : Voir la liste des fournisseurs
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /fournisseurs
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.16 : Exporter le stock
+- Description : Exporter le stock en CSV
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/export/csv
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.17 : Exporter les mouvements
+- Description : Exporter les mouvements de stock en CSV
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/mouvements/export/csv
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.18 : Exporter les péremptions
+- Description : Exporter les péremptions en CSV
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /stock/peremptions/export/csv
+- Contrôleur : StockController
+- Permission : stock.view
+
+UC 4.19 : Modifier le prix d'un produit
+- Description : Modifier le prix d'un produit
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /produits/modify-price, POST /produits/modify-price
+- Contrôleur : PriceController
+- Permission : stock.manage
+
+UC 4.20 : Consulter historique des prix
+- Description : Voir l'historique des prix d'un produit
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /produits/price-history
+- Contrôleur : PriceController
+- Permission : stock.view
+
+MODULE 5 : GESTION DE LA CAISSE
+-------------------------------
+UC 5.1 : Consulter dashboard caisse
+- Description : Afficher le dashboard de caisse
+- Acteurs : ADMIN, ASSISTANT, VENDEUR
+- Route : GET /caisse
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+UC 5.2 : Ouvrir une session de caisse
+- Description : Ouvrir une nouvelle session de caisse
+- Acteurs : ADMIN, ASSISTANT, VENDEUR
+- Route : GET /caisse/ouverture, POST /caisse/traiter-ouverture
+- Contrôleur : CaisseController
+- Permission : caisse.open
+
+UC 5.3 : Consulter état de la caisse
+- Description : Voir l'état de la caisse
+- Acteurs : ADMIN, ASSISTANT, VENDEUR
+- Route : GET /caisse/etat, GET /caisse/apiEtat
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+UC 5.4 : Fermer une session de caisse
+- Description : Fermer la session de caisse
+- Acteurs : ADMIN, ASSISTANT, VENDEUR
+- Route : GET /caisse/fermer, POST /caisse/traiter-fermeture
+- Contrôleur : CaisseController
+- Permission : caisse.close
+
+UC 5.5 : Consulter historique des sessions
+- Description : Voir l'historique des sessions de caisse
+- Acteurs : ADMIN, ASSISTANT, VENDEUR
+- Route : GET /caisse/historique
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+UC 5.6 : Consulter les encaissements
+- Description : Voir les encaissements
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /caisse/encaissements
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+UC 5.7 : Consulter les décaissements
+- Description : Voir les décaissements
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /caisse/decaissements
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+UC 5.8 : Enregistrer un décaissement
+- Description : Enregistrer un décaissement
+- Acteurs : ADMIN, ASSISTANT
+- Route : POST /caisse/decaissements
+- Contrôleur : CaisseController
+- Permission : caisse.manage
+
+UC 5.9 : Consulter les annulations
+- Description : Voir les annulations
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /caisse/annulations
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+UC 5.10 : Consulter les rapports de caisse
+- Description : Voir les rapports de caisse
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /caisse/rapports
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+UC 5.11 : Exporter les rapports de caisse
+- Description : Exporter les rapports de caisse
+- Acteurs : ADMIN, ASSISTANT
+- Route : GET /caisse/rapports/export
+- Contrôleur : CaisseController
+- Permission : caisse.view
+
+MODULE 6 : JOURNAL DE CAISSE
+---------------------------
+UC 6.1 : Consulter le journal de caisse
+- Description : Voir le journal de caisse
+- Acteurs : ADMIN, ASSISTANT, COMPTABLE
+- Route : GET /caisse/journal
+- Contrôleur : JournalCaisseController
+- Permission : caisse.view
+
+UC 6.2 : Voir le détail d'un mouvement
+- Description : Voir le détail d'un mouvement de caisse
+- Acteurs : ADMIN, ASSISTANT, COMPTABLE
+- Route : GET /caisse/journal/detail
+- Contrôleur : JournalCaisseController
+- Permission : caisse.view
+
+UC 6.3 : Exporter le journal en Excel
+- Description : Exporter le journal de caisse en Excel
+- Acteurs : ADMIN, ASSISTANT, COMPTABLE
+- Route : GET /caisse/journal/export-excel
+- Contrôleur : JournalCaisseController
+- Permission : caisse.view
+
+UC 6.4 : Exporter le journal en PDF
+- Description : Exporter le journal de caisse en PDF
+- Acteurs : ADMIN, ASSISTANT, COMPTABLE
+- Route : GET /caisse/journal/export-pdf
+- Contrôleur : JournalCaisseController
+- Permission : caisse.view
+
+UC 6.5 : Rechercher dans le journal
+- Description : Rechercher dans le journal de caisse
+- Acteurs : ADMIN, ASSISTANT, COMPTABLE
+- Route : GET /caisse/journal/search
+- Contrôleur : JournalCaisseController
+- Permission : caisse.view
+
+MODULE 7 : GESTION DES COMMANDES FOURNISSEURS
+---------------------------------------------
+UC 7.1 : Consulter dashboard commandes
+- Description : Afficher le dashboard des commandes
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/dashboard
+- Contrôleur : ChargeCommandeController
+- Permission : view_stock
+
+UC 7.2 : Créer une commande fournisseur
+- Description : Créer une nouvelle commande fournisseur
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/saisie, POST /commande/saisie
+- Contrôleur : ChargeCommandeController
+- Permission : create_supplier_orders
+
+UC 7.3 : Modifier une commande
+- Description : Modifier une commande existante
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/edit, POST /commande/update
+- Contrôleur : ChargeCommandeController
+- Permission : edit_supplier_orders
+
+UC 7.4 : Voir les détails d'une commande
+- Description : Voir les détails d'une commande
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/show
+- Contrôleur : ChargeCommandeController
+- Permission : view_stock
+
+UC 7.5 : Réceptionner une commande
+- Description : Réceptionner une commande fournisseur
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/reception, POST /commande/reception
+- Contrôleur : ChargeCommandeController
+- Permission : receive_supplier_orders
+
+UC 7.6 : Annuler une commande
+- Description : Annuler une commande
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : POST /commande/cancel
+- Contrôleur : ChargeCommandeController
+- Permission : cancel_supplier_orders
+
+UC 7.7 : Dupliquer une commande
+- Description : Dupliquer une commande existante
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : POST /commande/duplicate
+- Contrôleur : ChargeCommandeController
+- Permission : create_supplier_orders
+
+UC 7.8 : Imprimer une commande
+- Description : Imprimer une commande
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/print
+- Contrôleur : ChargeCommandeController
+- Permission : view_stock
+
+UC 7.9 : Exporter une commande en PDF
+- Description : Exporter une commande en PDF
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/export-pdf
+- Contrôleur : ChargeCommandeController
+- Permission : view_stock
+
+UC 7.10 : Exporter une commande en Excel
+- Description : Exporter une commande en Excel
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/export-excel
+- Contrôleur : ChargeCommandeController
+- Permission : view_stock
+
+UC 7.11 : Consulter historique des commandes
+- Description : Voir l'historique des commandes
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/historique
+- Contrôleur : ChargeCommandeController
+- Permission : view_stock
+
+UC 7.12 : Mettre à jour le statut d'une commande
+- Description : Mettre à jour le statut d'une commande
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : POST /commande/update-status
+- Contrôleur : ChargeCommandeController
+- Permission : edit_supplier_orders
+
+UC 7.13 : Envoyer une commande
+- Description : Envoyer une commande au fournisseur
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : POST /commande/send
+- Contrôleur : ChargeCommandeController
+- Permission : create_supplier_orders
+
+UC 7.14 : Consulter les mouvements de commandes
+- Description : Voir les mouvements de commandes
+- Acteurs : CHARGE_COMMANDE, ADMIN, ASSISTANT
+- Route : GET /commande/mouvements
+- Contrôleur : ChargeCommandeController
+- Permission : view_stock
+
+MODULE 8 : GESTION DE LA COMPTABILITÉ
+-------------------------------------
+UC 8.1 : Consulter dashboard comptabilité
+- Description : Afficher le dashboard comptabilité
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.2 : Consulter le plan comptable
+- Description : Voir le plan comptable SYSCOA
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/plan-comptable
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.3 : Consulter les journaux
+- Description : Voir les journaux comptables
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/journaux
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.4 : Consulter le journal des ventes
+- Description : Voir le journal des ventes
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/journaux/ventes
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.5 : Consulter le journal des achats
+- Description : Voir le journal des achats
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/journaux/achats
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.6 : Consulter le journal de caisse
+- Description : Voir le journal de caisse comptable
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/journaux/caisse
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.7 : Consulter le grand livre
+- Description : Voir le grand livre
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/grand-livre
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.8 : Consulter la balance
+- Description : Voir la balance générale
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/balance
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.9 : Consulter les états financiers
+- Description : Voir les états financiers (bilan, compte résultat, trésorerie)
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/etats-financiers
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.10 : Consulter le suivi des tiers
+- Description : Voir le suivi des tiers (clients, fournisseurs)
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/suivi-tiers
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.11 : Consulter la TVA
+- Description : Voir les déclarations de TVA
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/tva
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+UC 8.12 : Intégrer les écritures comptables
+- Description : Intégrer les écritures comptables automatiquement
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/integration, POST /comptabilite/integration
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_integration
+
+UC 8.13 : Exporter les données comptables
+- Description : Exporter les données comptables
+- Acteurs : COMPTABLE, ADMIN
+- Route : GET /comptabilite/exporter
+- Contrôleur : ComptabiliteController
+- Permission : comptabilite_view
+
+MODULE 9 : GESTION DE L'INVENTAIRE
+----------------------------------
+UC 9.1 : Consulter la liste des inventaires
+- Description : Voir la liste des inventaires
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /inventaire
+- Contrôleur : InventaireController
+- Permission : stock.inventory
+
+UC 9.2 : Créer un inventaire
+- Description : Créer un nouvel inventaire
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /inventaire/create, POST /inventaire
+- Contrôleur : InventaireController
+- Permission : stock.inventory
+
+UC 9.3 : Saisir un inventaire
+- Description : Saisir les articles d'un inventaire
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /inventaire/saisie, POST /inventaire/article
+- Contrôleur : InventaireController
+- Permission : stock.inventory
+
+UC 9.4 : Voir les détails d'un inventaire
+- Description : Voir les détails d'un inventaire
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : GET /inventaire/{id}
+- Contrôleur : InventaireController
+- Permission : stock.inventory
+
+UC 9.5 : Valider un inventaire
+- Description : Valider un inventaire
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : POST /inventaire/{id}/valider
+- Contrôleur : InventaireController
+- Permission : stock.inventory
+
+UC 9.6 : Annuler un inventaire
+- Description : Annuler un inventaire
+- Acteurs : ADMIN, ASSISTANT, CHARGE_COMMANDE
+- Route : POST /inventaire/{id}/annuler
+- Contrôleur : InventaireController
+- Permission : stock.inventory
+
+MODULE 10 : GESTION FINANCIÈRE
+-------------------------------
+UC 10.1 : Consulter les créances clients
+- Description : Voir les créances clients
+- Acteurs : COMPTABLE, ADMIN, ASSISTANT
+- Route : GET /finance/clients
+- Contrôleur : FinanceController
+- Permission : finance.clients
+
+UC 10.2 : Voir le détail d'une créance client
+- Description : Voir le détail d'une créance client
+- Acteurs : COMPTABLE, ADMIN, ASSISTANT
+- Route : GET /finance/clients/detail
+- Contrôleur : FinanceController
+- Permission : finance.clients
+
+UC 10.3 : Enregistrer un règlement client
+- Description : Enregistrer un règlement client
+- Acteurs : COMPTABLE, ADMIN, ASSISTANT
+- Route : POST /finance/clients/reglement
+- Contrôleur : FinanceController
+- Permission : finance.clients
+
+UC 10.4 : Consulter les dettes fournisseurs
+- Description : Voir les dettes fournisseurs
+- Acteurs : COMPTABLE, ADMIN, ASSISTANT
+- Route : GET /finance/fournisseurs
+- Contrôleur : FinanceController
+- Permission : finance.suppliers
+
+UC 10.5 : Voir le détail d'une dette fournisseur
+- Description : Voir le détail d'une dette fournisseur
+- Acteurs : COMPTABLE, ADMIN, ASSISTANT
+- Route : GET /finance/fournisseurs/detail
+- Contrôleur : FinanceController
+- Permission : finance.suppliers
+
+UC 10.6 : Enregistrer un règlement fournisseur
+- Description : Enregistrer un règlement fournisseur
+- Acteurs : COMPTABLE, ADMIN, ASSISTANT
+- Route : POST /finance/fournisseurs/reglement
+- Contrôleur : FinanceController
+- Permission : finance.suppliers
+
+UC 10.7 : Gérer les plafonds de remise
+- Description : Gérer les plafonds de remise par rôle
+- Acteurs : ADMIN
+- Route : GET /finance/discount-limits
+- Contrôleur : FinanceController
+- Permission : finance.manage
+
+MODULE 11 : GESTION DES ORDONNANCES
+----------------------------------
+UC 11.1 : Consulter la liste des ordonnances
+- Description : Voir la liste des ordonnances
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /ordonnances, GET /ordonnances/liste
+- Contrôleur : OrdonnanceController
+- Permission : ordonnance.view
+
+UC 11.2 : Voir les détails d'une ordonnance
+- Description : Voir les détails d'une ordonnance
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /ordonnances/voir/{id}
+- Contrôleur : OrdonnanceController
+- Permission : ordonnance.view
+
+UC 11.3 : Traiter une ordonnance
+- Description : Traiter une ordonnance
+- Acteurs : VENDEUR, ASSISTANT
+- Route : GET /ordonnances/traiter/{id}
+- Contrôleur : OrdonnanceController
+- Permission : ordonnance.manage
+
+MODULE 12 : ADMINISTRATION
+----------------------------
+UC 12.1 : Consulter dashboard admin
+- Description : Afficher le dashboard administrateur
+- Acteurs : ADMIN
+- Route : GET /admin, GET /admin/dashboard
+- Contrôleur : AdminController
+- Permission : reports.view
+
+UC 12.2 : Consulter les statistiques globales
+- Description : Voir les statistiques globales
+- Acteurs : ADMIN
+- Route : GET /admin/statistiques
+- Contrôleur : AdminController
+- Permission : reports.view
+
+UC 12.3 : Consulter les statistiques en temps réel
+- Description : Voir les statistiques en temps réel
+- Acteurs : ADMIN
+- Route : GET /admin/statistiques/live
+- Contrôleur : AdminController
+- Permission : reports.view
+
+UC 12.4 : Consulter les annulations de tickets
+- Description : Voir les annulations de tickets
+- Acteurs : ADMIN
+- Route : GET /admin/annulation-tickets
+- Contrôleur : AdminController
+- Permission : reports.view
+
+UC 12.5 : Consulter la liste des utilisateurs
+- Description : Voir la liste des utilisateurs
+- Acteurs : ADMIN
+- Route : GET /admin/users
+- Contrôleur : AdminController
+- Permission : users.view
+
+UC 12.6 : Créer un utilisateur
+- Description : Créer un nouvel utilisateur
+- Acteurs : ADMIN
+- Route : GET /admin/users/create, POST /admin/users/store
+- Contrôleur : AdminController
+- Permission : users.create
+
+UC 12.7 : Modifier un utilisateur
+- Description : Modifier un utilisateur
+- Acteurs : ADMIN
+- Route : GET /admin/users/{id}/edit, POST /admin/users/{id}/update
+- Contrôleur : AdminController
+- Permission : users.edit
+
+UC 12.8 : Supprimer un utilisateur
+- Description : Supprimer un utilisateur
+- Acteurs : ADMIN
+- Route : POST /admin/users/{id}/delete
+- Contrôleur : AdminController
+- Permission : users.delete
+
+UC 12.9 : Consulter les rôles
+- Description : Voir les rôles et permissions
+- Acteurs : ADMIN
+- Route : GET /admin/roles
+- Contrôleur : AdminController
+- Permission : roles.view
+
+UC 12.10 : Consulter l'audit
+- Description : Voir les logs d'audit
+- Acteurs : ADMIN
+- Route : GET /admin/audit
+- Contrôleur : AdminController
+- Permission : audit.view
+
+UC 12.11 : Consulter l'audit en temps réel
+- Description : Voir les logs d'audit en temps réel
+- Acteurs : ADMIN
+- Route : GET /admin/audit/live
+- Contrôleur : AdminController
+- Permission : audit.view
+
+UC 12.12 : Consulter les informations système
+- Description : Voir les informations système
+- Acteurs : ADMIN
+- Route : GET /admin/system
+- Contrôleur : AdminController
+- Permission : system.view
+
+MODULE 13 : ASSISTANT
+---------------------
+UC 13.1 : Consulter dashboard assistant
+- Description : Afficher le dashboard assistant
+- Acteurs : ASSISTANT
+- Route : GET /assistant/dashboard
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.2 : Consulter les données API dashboard
+- Description : Voir les données API du dashboard
+- Acteurs : ASSISTANT
+- Route : GET /assistant/api/dashboard
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.3 : Consulter la vente session
+- Description : Voir la vente session
+- Acteurs : ASSISTANT
+- Route : GET /assistant/vente-session
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.4 : Consulter les commandes
+- Description : Voir les commandes
+- Acteurs : ASSISTANT
+- Route : GET /assistant/commandes
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.5 : Consulter les remises
+- Description : Voir les remises
+- Acteurs : ASSISTANT
+- Route : GET /assistant/remise
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.6 : Consulter les annulations
+- Description : Voir les annulations
+- Acteurs : ASSISTANT
+- Route : GET /assistant/annulation, GET /assistant/annulation-ticket
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.7 : Consulter l'arrêt caisse
+- Description : Voir l'arrêt caisse
+- Acteurs : ASSISTANT
+- Route : GET /assistant/arret-caisse
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.8 : Consulter la facturation
+- Description : Voir la facturation
+- Acteurs : ASSISTANT
+- Route : GET /assistant/facturation, GET /assistant/impression
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.9 : Consulter la préparation des commandes
+- Description : Voir la préparation des commandes
+- Acteurs : ASSISTANT
+- Route : GET /assistant/preparation-commandes, GET /assistant/preparer-commande
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.10 : Consulter les statistiques
+- Description : Voir les statistiques
+- Acteurs : ASSISTANT
+- Route : GET /assistant/statistiques
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.11 : Consulter les mouvements de stock
+- Description : Voir les mouvements de stock
+- Acteurs : ASSISTANT
+- Route : GET /assistant/mouvements-stock, GET /assistant/mouvements-produits
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+UC 13.12 : Consulter les codes d'accès
+- Description : Voir les codes d'accès
+- Acteurs : ASSISTANT
+- Route : GET /assistant/codes-acces
+- Contrôleur : AssistantController
+- Permission : assistant.view
+
+MODULE 14 : SYSTÈME
+------------------
+UC 14.1 : Changer la date système
+- Description : Changer la date système
+- Acteurs : ADMIN
+- Route : GET /date/change, POST /date/change
+- Contrôleur : SystemController
+- Permission : system.manage
+
+UC 14.2 : Consulter les informations système
+- Description : Voir les informations système
+- Acteurs : ADMIN
+- Route : GET /system/info
+- Contrôleur : SystemController
+- Permission : system.view
+
+MODULE 15 : API
+---------------
+UC 15.1 : API GET clients
+- Description : API pour récupérer les clients
+- Acteurs : Système externe
+- Route : GET /api/clients
+- Contrôleur : ApiController
+- Permission : api.access
+
+UC 15.2 : API POST client
+- Description : API pour créer un client
+- Acteurs : Système externe
+- Route : POST /api/clients
+- Contrôleur : ApiController
+- Permission : api.access
+
+UC 15.3 : API PUT client
+- Description : API pour modifier un client
+- Acteurs : Système externe
+- Route : PUT /api/clients/{id}
+- Contrôleur : ApiController
+- Permission : api.access
+
+UC 15.4 : API DELETE client
+- Description : API pour supprimer un client
+- Acteurs : Système externe
+- Route : DELETE /api/clients/{id}
+- Contrôleur : ApiController
+- Permission : api.access
+
+================================================================================
+3. RELATIONS ACTEURS - CAS D'UTILISATION
+================================================================================
+
+ADMINISTRATEUR (5 rôles) :
+- Authentification : UC 1.1, UC 1.2
+- Ventes : UC 2.1, UC 2.3, UC 2.4
+- Clients : UC 3.1, UC 3.3, UC 3.4, UC 3.5, UC 3.6, UC 3.7, UC 3.8, UC 3.9
+- Stock : UC 4.1, UC 4.2, UC 4.3, UC 4.4, UC 4.5, UC 4.6, UC 4.7, UC 4.8, UC 4.9, UC 4.10, UC 4.11, UC 4.12, UC 4.13, UC 4.14, UC 4.15, UC 4.16, UC 4.17, UC 4.18, UC 4.19, UC 4.20
+- Caisse : UC 5.1, UC 5.2, UC 5.3, UC 5.4, UC 5.5, UC 5.6, UC 5.7, UC 5.8, UC 5.9, UC 5.10, UC 5.11
+- Journal caisse : UC 6.1, UC 6.2, UC 6.3, UC 6.4, UC 6.5
+- Commandes : UC 7.1, UC 7.2, UC 7.3, UC 7.4, UC 7.5, UC 7.6, UC 7.7, UC 7.8, UC 7.9, UC 7.10, UC 7.11, UC 7.12, UC 7.13, UC 7.14
+- Comptabilité : UC 8.1, UC 8.2, UC 8.3, UC 8.4, UC 8.5, UC 8.6, UC 8.7, UC 8.8, UC 8.9, UC 8.10, UC 8.11, UC 8.12, UC 8.13
+- Inventaire : UC 9.1, UC 9.2, UC 9.3, UC 9.4, UC 9.5, UC 9.6
+- Finance : UC 10.1, UC 10.2, UC 10.3, UC 10.4, UC 10.5, UC 10.6, UC 10.7
+- Administration : UC 12.1, UC 12.2, UC 12.3, UC 12.4, UC 12.5, UC 12.6, UC 12.7, UC 12.8, UC 12.9, UC 12.10, UC 12.11, UC 12.12
+- Système : UC 14.1, UC 14.2
+
+ASSISTANT (3 rôles) :
+- Authentification : UC 1.1, UC 1.2
+- Ventes : UC 2.1, UC 2.2, UC 2.3, UC 2.4, UC 2.5, UC 2.6, UC 2.7, UC 2.8
+- Clients : UC 3.1, UC 3.2, UC 3.3, UC 3.4, UC 3.5, UC 3.6, UC 3.7, UC 3.8, UC 3.9
+- Stock : UC 4.1, UC 4.2, UC 4.3, UC 4.4, UC 4.5, UC 4.6, UC 4.7, UC 4.8, UC 4.9, UC 4.10, UC 4.11, UC 4.12, UC 4.13, UC 4.14, UC 4.15, UC 4.16, UC 4.17, UC 4.18, UC 4.19, UC 4.20
+- Caisse : UC 5.1, UC 5.2, UC 5.3, UC 5.4, UC 5.5, UC 5.6, UC 5.7, UC 5.8, UC 5.9, UC 5.10, UC 5.11
+- Journal caisse : UC 6.1, UC 6.2, UC 6.3, UC 6.4, UC 6.5
+- Commandes : UC 7.1, UC 7.2, UC 7.3, UC 7.4, UC 7.5, UC 7.6, UC 7.7, UC 7.8, UC 7.9, UC 7.10, UC 7.11, UC 7.12, UC 7.13, UC 7.14
+- Inventaire : UC 9.1, UC 9.2, UC 9.3, UC 9.4, UC 9.5, UC 9.6
+- Finance : UC 10.1, UC 10.2, UC 10.3, UC 10.4, UC 10.5, UC 10.6
+- Ordonnances : UC 11.1, UC 11.2, UC 11.3
+- Assistant : UC 13.1, UC 13.2, UC 13.3, UC 13.4, UC 13.5, UC 13.6, UC 13.7, UC 13.8, UC 13.9, UC 13.10, UC 13.11, UC 13.12
+
+CHARGE DE COMMANDE (2 rôles) :
+- Authentification : UC 1.1, UC 1.2
+- Clients : UC 3.1, UC 3.4
+- Stock : UC 4.1, UC 4.2, UC 4.3, UC 4.4, UC 4.5, UC 4.6, UC 4.7, UC 4.8, UC 4.9, UC 4.10, UC 4.11, UC 4.12, UC 4.13, UC 4.15, UC 4.16, UC 4.17, UC 4.18
+- Commandes : UC 7.1, UC 7.2, UC 7.3, UC 7.4, UC 7.5, UC 7.6, UC 7.7, UC 7.8, UC 7.9, UC 7.10, UC 7.11, UC 7.12, UC 7.13, UC 7.14
+- Inventaire : UC 9.1, UC 9.2, UC 9.3, UC 9.4, UC 9.5, UC 9.6
+
+VENDEUR (2 rôles) :
+- Authentification : UC 1.1, UC 1.2, UC 1.3
+- Ventes : UC 2.1, UC 2.2, UC 2.3, UC 2.4, UC 2.5, UC 2.6, UC 2.7, UC 2.8
+- Clients : UC 3.1, UC 3.2, UC 3.4, UC 3.5, UC 3.10
+- Stock : UC 4.1, UC 4.2, UC 4.13
+- Caisse : UC 5.1, UC 5.2, UC 5.3, UC 5.4, UC 5.5
+- Ordonnances : UC 11.1, UC 11.2, UC 11.3
+
+COMPTABLE (1 rôle) :
+- Authentification : UC 1.1, UC 1.2
+- Clients : UC 3.1, UC 3.4, UC 3.6
+- Stock : UC 4.1, UC 4.2
+- Journal caisse : UC 6.1, UC 6.2, UC 6.3, UC 6.4, UC 6.5
+- Comptabilité : UC 8.1, UC 8.2, UC 8.3, UC 8.4, UC 8.5, UC 8.6, UC 8.7, UC 8.8, UC 8.9, UC 8.10, UC 8.11, UC 8.12, UC 8.13
+- Finance : UC 10.1, UC 10.2, UC 10.3, UC 10.4, UC 10.5, UC 10.6
+
+SYSTÈME EXTERNE (acteur secondaire) :
+- API : UC 15.1, UC 15.2, UC 15.3, UC 15.4
+
+================================================================================
+4. RELATIONS D'INCLUSION ET EXTENSION
+================================================================================
+
+INCLUSIONS (<<include>>) :
+----------------------------
+UC 2.2 (Créer une vente) <<include>> UC 3.10 (Vérifier plafond crédit)
+- Description : La création d'une vente inclut la vérification du plafond de crédit si vente à crédit
+
+UC 2.2 (Créer une vente) <<include>> UC 4.2 (Consulter disponibilité stock)
+- Description : La création d'une vente inclut la vérification de la disponibilité du stock
+
+UC 2.2 (Créer une vente) <<include>> UC 11.3 (Traiter une ordonnance)
+- Description : La création d'une vente inclut le traitement de l'ordonnance si produits nécessitent ordonnance
+
+UC 5.2 (Ouvrir une session de caisse) <<include>> UC 1.1 (Se connecter)
+- Description : L'ouverture de session inclut la connexion utilisateur
+
+UC 5.4 (Fermer une session de caisse) <<include>> UC 5.2 (Ouvrir une session de caisse)
+- Description : La fermeture de session inclut l'ouverture préalable
+
+UC 7.5 (Réceptionner une commande) <<include>> UC 4.5 (Entrée directe de stock)
+- Description : La réception de commande inclut l'entrée de stock
+
+UC 9.3 (Saisir un inventaire) <<include>> UC 9.2 (Créer un inventaire)
+- Description : La saisie d'inventaire inclut la création préalable
+
+UC 9.5 (Valider un inventaire) <<include>> UC 9.3 (Saisir un inventaire)
+- Description : La validation d'inventaire inclut la saisie préalable
+
+UC 10.3 (Enregistrer un règlement client) <<include>> UC 10.1 (Consulter les créances clients)
+- Description : L'enregistrement de règlement inclut la consultation des créances
+
+UC 10.6 (Enregistrer un règlement fournisseur) <<include>> UC 10.4 (Consulter les dettes fournisseurs)
+- Description : L'enregistrement de règlement inclut la consultation des dettes
+
+EXTENSIONS (<<extend>>) :
+---------------------------
+UC 2.2 (Créer une vente) <<extend>> UC 2.5 (Suspendre un ticket)
+- Description : La création d'une vente peut être étendue par la suspension du ticket
+
+UC 2.2 (Créer une vente) <<extend>> UC 2.6 (Reprendre un ticket suspendu)
+- Description : La création d'une vente peut être étendue par la reprise d'un ticket suspendu
+
+UC 2.2 (Créer une vente) <<extend>> UC 2.4 (Annuler une vente)
+- Description : La création d'une vente peut être étendue par l'annulation
+
+UC 3.2 (Créer un client) <<extend>> UC 3.9 (Désactiver un client)
+- Description : La création de client peut être étendue par la désactivation
+
+UC 4.4 (Ajouter un produit) <<extend>> UC 4.12 (Modifier un produit)
+- Description : L'ajout de produit peut être étendu par la modification
+
+UC 4.4 (Ajouter un produit) <<extend>> UC 4.19 (Modifier le prix d'un produit)
+- Description : L'ajout de produit peut être étendu par la modification du prix
+
+UC 7.2 (Créer une commande) <<extend>> UC 7.3 (Modifier une commande)
+- Description : La création de commande peut être étendue par la modification
+
+UC 7.2 (Créer une commande) <<extend>> UC 7.6 (Annuler une commande)
+- Description : La création de commande peut être étendue par l'annulation
+
+UC 7.2 (Créer une commande) <<extend>> UC 7.7 (Dupliquer une commande)
+- Description : La création de commande peut être étendue par la duplication
+
+UC 9.2 (Créer un inventaire) <<extend>> UC 9.6 (Annuler un inventaire)
+- Description : La création d'inventaire peut être étendue par l'annulation
+
+UC 12.6 (Créer un utilisateur) <<extend>> UC 12.7 (Modifier un utilisateur)
+- Description : La création d'utilisateur peut être étendue par la modification
+
+UC 12.6 (Créer un utilisateur) <<extend>> UC 12.8 (Supprimer un utilisateur)
+- Description : La création d'utilisateur peut être étendue par la suppression
+
+================================================================================
+5. GUIDE POUR DRAW.IO
+================================================================================
+
+ÉTAPE 1 : Créer les acteurs
+----------------------------
+Dans draw.io, utilisez la forme "Actor" (icône personne) pour représenter les 5 acteurs principaux :
+- Administrateur (stickman avec icône admin)
+- Assistant (stickman avec icône assistant)
+- Charge de commande (stickman avec icône commande)
+- Vendeur (stickman avec icône vente)
+- Comptable (stickman avec icône comptabilité)
+
+Acteur secondaire :
+- Système externe (rectangle avec icône système)
+
+ÉTAPE 2 : Créer les cas d'utilisation
+--------------------------------------
+Utilisez la forme "Use Case" (ellipse) pour représenter les cas d'utilisation.
+Regroupez les cas d'utilisation par module avec des packages (rectangles) :
+- Authentification
+- Gestion des ventes
+- Gestion des clients
+- Gestion du stock
+- Gestion de la caisse
+- Journal de caisse
+- Gestion des commandes fournisseurs
+- Gestion de la comptabilité
+- Gestion de l'inventaire
+- Gestion financière
+- Gestion des ordonnances
+- Administration
+- Assistant
+- Système
+- API
+
+ÉTAPE 3 : Relier les acteurs aux cas d'utilisation
+---------------------------------------------------
+Utilisez des lignes pleines pour relier chaque acteur aux cas d'utilisation qu'il peut exécuter.
+- Administrateur : Relier à tous les cas d'utilisation admin + ventes + clients + stock + caisse + commandes + comptabilité + inventaire + finance + système
+- Assistant : Relier à ventes + clients + stock + caisse + commandes + inventaire + finance + ordonnances + assistant
+- Charge de commande : Relier à stock + commandes + inventaire
+- Vendeur : Relier à ventes + clients + stock + caisse + ordonnances
+- Comptable : Relier à clients + stock + journal caisse + comptabilité + finance
+- Système externe : Relier à API
+
+ÉTAPE 4 : Ajouter les relations d'inclusion
+-------------------------------------------
+Utilisez des lignes pointillées avec la flèche vers le cas inclus (<<include>>).
+- UC 2.2 <<include>> UC 3.10
+- UC 2.2 <<include>> UC 4.2
+- UC 2.2 <<include>> UC 11.3
+- UC 5.2 <<include>> UC 1.1
+- UC 5.4 <<include>> UC 5.2
+- UC 7.5 <<include>> UC 4.5
+- UC 9.3 <<include>> UC 9.2
+- UC 9.5 <<include>> UC 9.3
+- UC 10.3 <<include>> UC 10.1
+- UC 10.6 <<include>> UC 10.4
+
+ÉTAPE 5 : Ajouter les relations d'extension
+-------------------------------------------
+Utilisez des lignes pointillées avec la flèche vers le cas étendant (<<extend>>).
+- UC 2.5 <<extend>> UC 2.2
+- UC 2.6 <<extend>> UC 2.2
+- UC 2.4 <<extend>> UC 2.2
+- UC 3.9 <<extend>> UC 3.2
+- UC 4.12 <<extend>> UC 4.4
+- UC 4.19 <<extend>> UC 4.4
+- UC 7.3 <<extend>> UC 7.2
+- UC 7.6 <<extend>> UC 7.2
+- UC 7.7 <<extend>> UC 7.2
+- UC 9.6 <<extend>> UC 9.2
+- UC 12.7 <<extend>> UC 12.6
+- UC 12.8 <<extend>> UC 12.6
+
+ÉTAPE 6 : Organiser le diagramme
+--------------------------------
+- Placez les acteurs à gauche du diagramme
+- Placez les cas d'utilisation à droite du diagramme
+- Regroupez les cas d'utilisation par module avec des packages
+- Utilisez des couleurs différentes pour chaque module
+- Ajoutez des légendes pour les relations (include/extend)
+
+ÉTAPE 7 : Ajouter les légendes
+------------------------------
+- Ligne pleine : Association acteur-cas d'utilisation
+- Ligne pointillée avec <<include>> : Inclusion
+- Ligne pointillée avec <<extend>> : Extension
+
+================================================================================
+6. RÉSUMÉ DES STATISTIQUES
+================================================================================
+
+Nombre total d'acteurs : 6 (5 principaux + 1 secondaire)
+Nombre total de cas d'utilisation : 85
+Nombre de modules : 15
+Nombre de relations d'inclusion : 10
+Nombre de relations d'extension : 12
+
+Distribution par module :
+- Authentification : 3 UC
+- Ventes : 8 UC
+- Clients : 10 UC
+- Stock : 20 UC
+- Caisse : 11 UC
+- Journal caisse : 5 UC
+- Commandes : 14 UC
+- Comptabilité : 13 UC
+- Inventaire : 6 UC
+- Finance : 7 UC
+- Ordonnances : 3 UC
+- Administration : 12 UC
+- Assistant : 12 UC
+- Système : 2 UC
+- API : 4 UC
+
+Distribution par acteur :
+- Administrateur : 65 UC
+- Assistant : 52 UC
+- Charge de commande : 18 UC
+- Vendeur : 13 UC
+- Comptable : 18 UC
+- Système externe : 4 UC
+
+================================================================================
+FIN DU RAPPORT POUR DIAGRAMME DE CAS D'UTILISATION
+================================================================================

@@ -1,0 +1,186 @@
+=== ÉTAPE 5 - ANALYSE INTÉGRATION SUPPLIER_ORDERS → COMPTABILITÉ ===
+
+================================================================================
+FLUX ACTUEL (commandes)
+================================================================================
+
+commandes (ancien système)
+    ↓
+EcritureComptableService::genererEcrituresAchat()
+    ↓
+Écriture comptable générée avec:
+    - reference_type = 'ACHAT'
+    - reference_id = commandes.id
+    - journal_code = 'AC' (Journal des achats)
+    - compte débit: COMPTE_STOCK_MEDICAMENTS (montant HT)
+    - compte débit: COMPTE_TVA_DEDUCTIBLE (si TVA > 0)
+    - compte crédit: COMPTE_FOURNISSEURS ou COMPTE_BANQUE (montant TTC)
+    - Mise à jour commandes.ecriture_id
+
+================================================================================
+FLUX CIBLE (supplier_orders)
+================================================================================
+
+supplier_orders (nouveau système)
+    ↓
+réception (receptions)
+    ↓
+stock_entries
+    ↓
+mouvements_stock
+    ↓
+Écriture comptable à générer avec:
+    - reference_type = 'RECEPTION' (NOUVEAU)
+    - reference_id = receptions.id
+    - journal_code = 'AC' (Journal des achats)
+    - compte débit: COMPTE_STOCK_MEDICAMENTS (montant HT)
+    - compte débit: COMPTE_TVA_DEDUCTIBLE (si TVA > 0)
+    - compte crédit: COMPTE_FOURNISSEURS (montant TTC)
+    - Mise à jour receptions.ecriture_id (à ajouter)
+
+================================================================================
+SERVICES EXISTANTS À RÉUTILISER
+================================================================================
+
+1. EcritureComptableService
+   - Méthode: genererEcrituresAchat()
+   - Méthode: ecrituresExistent() - vérification des doublons
+   - Méthode: mettreAJourReferenceEcriture() - mise à jour ecriture_id
+   - Méthode: enregistrerEcriture() - enregistrement de l'écriture
+
+2. JournalComptableService
+   - Méthode: getCompteCreditPourAchat() - détermine le compte de crédit
+   - Méthode: getCompteTresoreriePourVente() - compte de trésorerie
+
+3. PlanComptableService
+   - COMPTE_STOCK_MEDICAMENTS (31 ou 35)
+   - COMPTE_TVA_DEDUCTIBLE (445)
+   - COMPTE_FOURNISSEURS (401)
+   - COMPTE_BANQUE (51)
+
+================================================================================
+MODIFICATIONS REQUISES
+================================================================================
+
+1. Ajouter une colonne ecriture_id dans la table receptions
+   - Type: INT NULL
+   - Utilisation: Lien avec l'écriture comptable générée
+
+2. Ajouter 'RECEPTION' dans getTableByReferenceType()
+   - Mapping: 'RECEPTION' => 'receptions'
+
+3. Créer une nouvelle méthode: genererEcrituresReception()
+   - Similaire à genererEcrituresAchat()
+   - Utilise receptions.id comme reference_id
+   - Utilise reference_type = 'RECEPTION'
+   - Calcule HT, TVA, TTC à partir de reception_items
+   - Utilise le compte fournisseur 401
+
+4. Intégrer dans ChargeCommandeService::receiveOrder()
+   - Après la mise à jour du stock
+   - Avant le commit de la transaction
+   - Appeler genererEcrituresReception()
+   - Gérer les erreurs et rollback
+
+================================================================================
+COMPTES SYSCOHADA À UTILISER
+================================================================================
+
+Comptes déjà présents dans la base (à vérifier):
+- 31: Marchandises (Stock médicaments)
+- 35: Produits finis
+- 401: Fournisseurs
+- 445: TVA déductible
+- 51: Banques
+
+================================================================================
+GESTION TVA
+================================================================================
+
+Le système actuel utilise:
+- calculerHT(): montantTTC / (1 + tauxTVA)
+- calculerTVA(): montantTTC - montantHT
+- Taux TVA par défaut: 18%
+
+Pour les réceptions:
+- Utiliser supplier_order_items.tva (si présent)
+- Sinon utiliser tva_globale de supplier_orders
+- Sinon utiliser le taux par défaut (18%)
+
+================================================================================
+TRAÇABILITÉ
+================================================================================
+
+Mécanisme existant:
+- reference_type: type de l'opération
+- reference_id: ID de l'opération
+
+Pour les réceptions:
+- reference_type = 'RECEPTION'
+- reference_id = receptions.id
+- Permet de retrouver l'écriture depuis la réception
+- Permet de retrouver la réception depuis l'écriture
+
+================================================================================
+PRÉVENTION DES DOUBLONS
+================================================================================
+
+Méthode existante: ecrituresExistent()
+- Vérifie si une écriture existe déjà pour reference_type/reference_id
+- Utilisée dans genererEcrituresAchat()
+- À utiliser dans genererEcrituresReception()
+
+================================================================================
+TRANSACTION
+================================================================================
+
+Flux transactionnel cible dans receiveOrder():
+BEGIN TRANSACTION
+    ↓
+1. Créer reception
+    ↓
+2. Créer reception_items
+    ↓
+3. Mettre à jour supplier_order_items
+    ↓
+4. addStock() → stock_entries
+    ↓
+5. addStock() → mouvements_stock
+    ↓
+6. addStock() → stock
+    ↓
+7. genererEcrituresReception()
+    ↓
+8. Mettre à jour receptions.ecriture_id
+    ↓
+COMMIT
+
+En cas d'erreur: ROLLBACK
+
+================================================================================
+RECOMMANDATION D'IMPLÉMENTATION
+================================================================================
+
+1. Ajouter la colonne receptions.ecriture_id (migration)
+2. Modifier getTableByReferenceType() pour inclure 'RECEPTION'
+3. Créer genererEcrituresReception() dans EcritureComptableService
+4. Intégrer l'appel dans ChargeCommandeService::receiveOrder()
+5. Tester avec une réception de test
+6. Vérifier l'équilibre débit/crédit
+7. Vérifier la traçabilité
+
+================================================================================
+RISQUES
+================================================================================
+
+1. Si les comptes SYSCOHADA n'existent pas ou sont inactifs
+   - Solution: Vérifier l'existence et l'activité avant génération
+   - Erreur explicite si compte manquant
+
+2. Si les données de réception sont incomplètes
+   - Solution: Validation des données avant génération
+   - Erreur explicite si données invalides
+
+3. Si la transaction échoue partiellement
+   - Solution: Gestion stricte des transactions
+   - Rollback complet en cas d'erreur

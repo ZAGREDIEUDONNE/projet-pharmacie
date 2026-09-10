@@ -1,0 +1,1955 @@
+================================================================================
+RAPPORT D'AUDIT COMPLET — MODULE COMPTABLE — ERP PHARMACY
+================================================================================
+Date : 21 août 2026
+Auditeur : Cascade AI
+Scope : Module comptable SYSCOA/OHADA complet
+Contrainte : Aucune modification de code, données ou migrations
+
+================================================================================
+1. RÉSUMÉ EXÉCUTIF
+================================================================================
+
+Score global : 65/100
+
+Le module comptable est PARTIELLEMENT FONCTIONNEL mais INCOMPLET par rapport
+au standard SYSCOA/OHADA complet. L'architecture est solide, les écritures
+sont équilibrées, mais plusieurs fonctionnalités clés sont manquantes ou
+partiellement implémentées.
+
+Points forts :
+- Architecture MVC respectée avec services dédiés
+- Écritures parfaitement équilibrées (76 écritures, 0 déséquilibre)
+- Intégration automatique ventes fonctionnelle (97% de couverture)
+- RBAC fonctionnel avec rôle COMPTABLE
+- Exercices comptables présents (2026 ouvert)
+- Audit et traçabilité opérationnels
+
+Points critiques :
+- Validation des écritures NON implémentée (colonnes manquantes)
+- Contre-passation PARTIELLE (colonnes présentes mais logique incomplète)
+- Intégration caisse PARTIELLE (31% de couverture)
+- Intégration achats ABSENTE (0 commande avec écriture)
+- Classes comptables SYSCOA ABSENTES
+- Périodes comptables NON implémentées
+- Paramétrage comptable HARDCODED
+
+================================================================================
+2. ARCHITECTURE ACTUELLE
+================================================================================
+
+Type : PHP MVC personnalisé avec couche Services
+Base de données : MySQL 8+
+ORM : Aucun (PDO direct)
+Pattern : Service-First
+
+Controllers :
+- ComptabiliteController (785 lignes) - Module comptable
+- VenteController (936 lignes) - Intègre ComptabiliteService
+- CaisseController (935 lignes) - Intègre EcritureComptableService
+- CommandeController (214 lignes) - PAS d'intégration comptable
+
+Services comptables (9 services) :
+- ComptabiliteService (85 lignes) - Facade, délègue à EcritureComptableService
+- ComptabiliteAvanceeService (662 lignes) - Clôture exercices, exports SYSCOA
+- EcritureComptableService (961 lignes) - Génération écritures
+- PlanComptableService (588 lignes) - Plan comptable SYSCOHADA
+- JournalComptableService (740 lignes) - Journaux comptables
+- GrandLivreService (544 lignes) - Grand livre
+- BalanceGeneraleService (563 lignes) - Balance générale
+- EtatsFinanciersService (473 lignes) - États financiers
+- TVAService (483 lignes) - TVA
+- IntegrationComptableService (708 lignes) - Intégration automatique
+- SuiviTiersService (637 lignes) - Suivi clients/fournisseurs
+- ReglementTiersService (297 lignes) - Règlements tiers
+- ExerciceComptableService (72 lignes) - Gestion exercices
+- ComptabiliteEcritureScope (23 lignes) - Scope lecture écritures valides
+
+Modèles : Aucun modèle ORM (accès direct via PDO dans services)
+
+================================================================================
+3. INVENTAIRE DES FICHIERS
+================================================================================
+
+Controllers :
+- app/Controllers/ComptabiliteController.php (785 lignes) ✅
+- app/Controllers/VenteController.php (936 lignes) - Intègre comptabilité ✅
+- app/Controllers/CaisseController.php (935 lignes) - Intègre partiellement ⚠️
+- app/Controllers/CommandeController.php (214 lignes) - PAS d'intégration ❌
+
+Services :
+- app/Services/ComptabiliteService.php (85 lignes) ✅
+- app/Services/ComptabiliteAvanceeService.php (662 lignes) ✅
+- app/Services/EcritureComptableService.php (961 lignes) ✅
+- app/Services/PlanComptableService.php (588 lignes) ✅
+- app/Services/JournalComptableService.php (740 lignes) ✅
+- app/Services/GrandLivreService.php (544 lignes) ✅
+- app/Services/BalanceGeneraleService.php (563 lignes) ✅
+- app/Services/EtatsFinanciersService.php (473 lignes) ✅
+- app/Services/EtatFinancierService.php (473 lignes) - Dupliquat ⚠️
+- app/Services/TVAService.php (483 lignes) ✅
+- app/Services/IntegrationComptableService.php (708 lignes) ✅
+- app/Services/SuiviTiersService.php (637 lignes) ✅
+- app/Services/ReglementTiersService.php (297 lignes) ✅
+- app/Services/ExerciceComptableService.php (72 lignes) ✅
+- app/Services/ComptabiliteEcritureScope.php (23 lignes) ✅
+- app/Services/JournalCaisseService.php (291 lignes) - Journal caisse (non comptable) ✅
+
+Vues :
+- app/Views/comptabilite/index.php (31 KB) ✅
+- app/Views/comptabilite/plan_comptable.php ✅
+- app/Views/comptabilite/journaux.php ✅
+- app/Views/comptabilite/journal_ventes.php ✅
+- app/Views/comptabilite/journal_achats.php ✅
+- app/Views/comptabilite/journal_caisses.php ✅
+- app/Views/comptabilite/grand_livre.php ✅
+- app/Views/comptabilite/balance.php ✅
+- app/Views/comptabilite/etats_financiers.php ✅
+- app/Views/comptabilite/suivi_tiers.php ✅
+- app/Views/comptabilite/tva.php ✅
+- app/Views/comptabilite/integration.php ✅
+- app/Views/comptabilite/_helpers.php ✅
+
+Migrations :
+- database/migrations/007_create_comptabilite_tables.sql (12 KB) ✅
+- database/migrations/013_unify_comptabilite.sql (811 octets) ✅
+- database/migrations/018_create_reglements_clients_table.sql (1.2 KB) ✅
+- database/migrations/026_add_reception_ecriture_id.sql (1.5 KB) ✅
+- database/migrations/036_comptabilite_phase2_safe.sql (904 octets) - NON exécuté ⚠️
+
+Scripts :
+- scripts/audit_comptabilite_phase1.php ✅
+- scripts/audit_comptabilite_complet.php ✅
+- scripts/migrer_comptabilite.php ✅
+- scripts/test_comptabilite_http.php ✅
+- scripts/validate_comptabilite_phase2.php ✅
+- scripts/validate_comptabilite_phase3.php ✅
+
+================================================================================
+4. INVENTAIRE DES ROUTES
+================================================================================
+
+Routes comptables (config/routes.php lignes 169-185) :
+
+| Route | HTTP | Contrôleur | Méthode | Permission | État |
+|-------|------|------------|---------|------------|------|
+| /comptabilite | GET | ComptabiliteController | index | comptabilite_view | ✅ |
+| /comptabilite/plan-comptable | GET | ComptabiliteController | planComptable | plan_comptable_view | ✅ |
+| /comptabilite/journaux | GET | ComptabiliteController | journaux | journaux_view | ✅ |
+| /comptabilite/journaux/ventes | GET | ComptabiliteController | journalVentes | journal_ventes_view | ✅ |
+| /comptabilite/journaux/achats | GET | ComptabiliteController | journalAchats | journal_achats_view | ✅ |
+| /comptabilite/journaux/caisse | GET | ComptabiliteController | journalCaisse | journal_caisse_view | ✅ |
+| /comptabilite/grand-livre | GET | ComptabiliteController | grandLivre | grand_livre_view | ✅ |
+| /comptabilite/balance | GET | ComptabiliteController | balance | balance_view | ✅ |
+| /comptabilite/etats-financiers | GET | ComptabiliteController | etatsFinanciers | etats_financiers_view | ✅ |
+| /comptabilite/suivi-tiers | GET | ComptabiliteController | suiviTiers | suivi_tiers_view | ✅ |
+| /comptabilite/tva | GET | ComptabiliteController | tva | tva_view | ✅ |
+| /comptabilite/integration | GET | ComptabiliteController | integration | integration_view | ✅ |
+| /comptabilite/integration | POST | ComptabiliteController | integration | integration_view | ⚠️ |
+| /comptabilite/exporter | GET | ComptabiliteController | exporter | comptabilite_view | ✅ |
+| /comptabilite/api | GET | ComptabiliteController | api | comptabilite_view | ✅ |
+| /comptabilite/api | POST | ComptabiliteController | api | comptabilite_view | ⚠️ |
+
+Anomalies routes :
+- POST /comptabilite/integration : Pas de vérification CSRF explicite
+- POST /comptabilite/api : Pas de vérification CSRF explicite
+- Toutes les routes sont GET sauf 2 POST (CSRF non vérifié)
+
+================================================================================
+5. INVENTAIRE DES CONTRÔLEURS
+================================================================================
+
+ComptabiliteController (785 lignes) :
+
+Méthode | Route | HTTP | Permission | Service utilisé | Vue | État
+--------|-------|------|------------|----------------|-----|-----
+index() | /comptabilite | GET | comptabilite_view | Tous services | comptabilite/index | ✅
+planComptable() | /comptabilite/plan-comptable | GET | plan_comptable_view | PlanComptableService | comptabilite/plan_comptable | ✅
+journaux() | /comptabilite/journaux | GET | journaux_view | JournalComptableService | comptabilite/journaux | ✅
+journalVentes() | /comptabilite/journaux/ventes | GET | journal_ventes_view | JournalComptableService | comptabilite/journal_ventes | ✅
+journalAchats() | /comptabilite/journaux/achats | GET | journal_achats_view | JournalComptableService | comptabilite/journal_achats | ✅
+journalCaisse() | /comptabilite/journaux/caisse | GET | journal_caisse_view | JournalComptableService | comptabilite/journal_caisses | ✅
+grandLivre() | /comptabilite/grand-livre | GET | grand_livre_view | GrandLivreService | comptabilite/grand_livre | ✅
+balance() | /comptabilite/balance | GET | balance_view | BalanceGeneraleService | comptabilite/balance | ✅
+etatsFinanciers() | /comptabilite/etats-financiers | GET | etats_financiers_view | EtatsFinanciersService | comptabilite/etats_financiers | ✅
+suiviTiers() | /comptabilite/suivi-tiers | GET | suivi_tiers_view | SuiviTiersService | comptabilite/suivi_tiers | ✅
+tva() | /comptabilite/tva | GET | tva_view | TVAService | comptabilite/tva | ✅
+integration() | /comptabilite/integration | GET/POST | integration_view | IntegrationComptableService | comptabilite/integration | ✅
+exporter() | /comptabilite/exporter | GET | comptabilite_view | ComptabiliteAvanceeService | - | ✅
+api() | /comptabilite/api | GET/POST | comptabilite_view | Multiple | - | ✅
+
+Contrôle d'accès :
+- requireComptabiliteAccess() ligne 71-74
+- Appelle requirePermission() avec permission spécifique
+- Pas de denyChargeCommandeRestrictedModules() (COMPTABLE autorisé)
+
+VenteController (936 lignes) :
+
+Intégration comptable :
+- Ligne 35 : ComptabiliteService injecté
+- Ligne 58 : $this->comptabiliteService->prepareEcritures() avant vente
+- Ligne 104 : $this->comptabiliteService->genererEcritureVente($vente['id'])
+- Intégration AUTOMATIQUE pour les ventes non suspendues
+- Intégration AUTOMATIQUE pour les ventes non crédit
+
+CaisseController (935 lignes) :
+
+Intégration comptable :
+- Ligne 45 : $this->getJournalComptableService()->ensureComptabiliteReady()
+- PAS d'appel à EcritureComptableService pour générer des écritures
+- Les mouvements de caisse NE génèrent PAS automatiquement d'écritures comptables
+- Intégration PARTIELLE via IntegrationComptableService (manuelle)
+
+CommandeController (214 lignes) :
+
+Intégration comptable :
+- AUCUNE intégration comptable
+- PAS de ComptabiliteService injecté
+- Les réceptions NE génèrent PAS automatiquement d'écritures comptables
+- Intégration ABSENTE
+
+================================================================================
+6. INVENTAIRE DES SERVICES
+================================================================================
+
+ComptabiliteService (85 lignes) :
+- Rôle : Facade pour compatibilité historique
+- Méthodes publiques :
+  - prepareEcritures() : Initialise plan + journaux
+  - genererEcritureVente(int $venteId) : Délègue à EcritureComptableService
+  - genererEcritureAchat(int $commandeId) : Délègue à EcritureComptableService
+  - annulerEcritureVente(int $venteId, int $utilisateurId) : Annulation
+  - ajusterEcritureVente(int $venteId, int $utilisateurId) : Ajustement
+  - genererBilan(string $dateFin) : Délègue à EtatsFinanciersService
+  - genererCompteResultat(string $dateDebut, string $dateFin) : Délègue à EtatsFinanciersService
+- Tables utilisées : Aucune (délègue)
+- Transactions : Aucune (délègue)
+- Validation débit/crédit : Délègue à EcritureComptableService
+- Audit : Via AuditService injecté
+- État : ✅ FONCTIONNEL
+
+ComptabiliteAvanceeService (662 lignes) :
+- Rôle : Fonctionnalités avancées SYSCOA
+- Méthodes publiques :
+  - cloturerExercice(array $data) : Clôture exercice avec bilan
+  - exporterPDF(array $data) : Export PDF (simulation)
+  - exporterExcel(array $data) : Export Excel (simulation)
+  - verifierConformiteSyscoa(string $exercice) : Vérification conformité
+- Méthodes privées :
+  - genererBilan(string $exercice) : Bilan SYSCOA
+  - genererCompteResultat(string $exercice) : Compte résultat SYSCOA
+  - genererJournalGeneral(string $exercice, array $filtres) : Journal général
+  - genererGrandLivre(string $exercice, array $filtres) : Grand livre
+  - genererBalance(string $exercice, array $filtres) : Balance
+- Tables utilisées : exercices_comptables, lignes_ecritures, ecritures_comptables, plan_comptable
+- Transactions : Oui (beginTransaction/commit/rollBack)
+- Validation débit/crédit : Oui (vérification dans verifierConformiteSyscoa)
+- Audit : Oui (logComptabiliteOperation)
+- État : ✅ FONCTIONNEL
+
+EcritureComptableService (961 lignes) :
+- Rôle : Génération et gestion des écritures comptables
+- Méthodes publiques :
+  - prepareComptabilite() : Initialise plan + journaux
+  - genererEcrituresVente(array $vente, string $referenceType = 'VENTE') : Écritures vente
+  - genererEcrituresReception(array $reception) : Écritures réception fournisseur
+  - genererEcrituresAchat(array $achat) : Écritures achat
+  - genererEcrituresCaisse(array $mouvement) : Écritures caisse
+  - genererEcritureVenteParId(int $venteId) : Récupère vente et génère écriture
+  - annulerEcritureVente(int $venteId, int $utilisateurId) : Annulation vente
+  - ajusterEcritureVente(int $venteId, int $utilisateurId) : Ajustement vente
+- Méthodes privées :
+  - ecrituresExistent(string $referenceType, int $referenceId) : Vérifie doublon
+  - enregistrerEcriture(array $ecritureData) : Enregistre écriture + lignes
+  - mettreAJourReferenceEcriture(string $referenceType, int $referenceId, int $ecritureId) : Met à jour référence
+  - calculerHT(float $montantTTC) : Calcul HT
+  - calculerTVA(float $montantTTC, float $montantHT) : Calcul TVA
+- Tables utilisées : ecritures_comptables, lignes_ecritures, plan_comptable, journaux_comptables, ventes, commandes, mouvements_caisse
+- Transactions : Oui (beginTransaction/commit/rollBack avec ownsTransaction)
+- Validation débit/crédit : OUI (vérification stricte < 0.01 avant enregistrement)
+- Audit : Oui (via AuditService)
+- État : ✅ FONCTIONNEL
+
+PlanComptableService (588 lignes) :
+- Rôle : Gestion du plan comptable SYSCOHADA
+- Constantes SYSCOHADA :
+  - COMPTE_CAISSE = '571'
+  - COMPTE_CLIENTS = '411'
+  - COMPTE_VENTES = '701'
+  - COMPTE_TVA_COLLECTEE = '44571'
+  - COMPTE_FOURNISSEURS = '401'
+  - COMPTE_STOCK_MEDICAMENTS = '311'
+  - COMPTE_BANQUE = '521'
+  - COMPTE_TVA_DEDUCTIBLE = '44561'
+  - COMPTE_VIREMENTS_INTERNES = '581'
+  - COMPTE_AUTRES_PRODUITS = '75'
+- Méthodes publiques :
+  - initialiserPlanComptable() : Initialise plan comptable SYSCOHADA
+  - getPlanComptable() : Récupère tous les comptes
+  - getCompteByCode(string $code) : Récupère compte par code
+  - getStatistiquesPlanComptable() : Statistiques plan comptable
+  - creerCompte(array $data) : Crée compte
+  - modifierCompte(int $id, array $data) : Modifie compte
+  - desactiverCompte(int $id) : Désactive compte
+- Tables utilisées : plan_comptable
+- Transactions : Non (lecture seule)
+- Validation débit/crédit : Non (lecture seule)
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+JournalComptableService (740 lignes) :
+- Rôle : Gestion des journaux comptables
+- Méthodes publiques :
+  - ensureComptabiliteReady() : Initialise plan + journaux si nécessaire
+  - creerJournauxPrincipaux() : Crée les 5 journaux SYSCOHADA (AC, VT, CA, BQ, OD)
+  - getJournaux() : Récupère tous les journaux
+  - getJournalByCode(string $code) : Récupère journal par code
+  - enregistrerEcriture(array $ecritureData) : Enregistre écriture dans journal
+  - getEcrituresJournal(string $journalCode, string $dateDebut, string $dateFin) : Écritures d'un journal
+  - getCompteDepense(string $typeDepense) : Compte de dépense pour caisse
+  - getCompteCreditPourAchat(array $achat) : Compte de crédit pour achat
+- Tables utilisées : journaux_comptables, ecritures_comptables, lignes_ecritures, plan_comptable
+- Transactions : Oui (beginTransaction/commit/rollBack)
+- Validation débit/crédit : Non (délègue à EcritureComptableService)
+- Audit : Oui (via AuditService)
+- État : ✅ FONCTIONNEL
+
+GrandLivreService (544 lignes) :
+- Rôle : Génération du grand livre
+- Méthodes publiques :
+  - getGrandLivreCompte(string $compteCode, string $dateDebut, string $dateFin) : Grand livre par compte
+  - getGrandLivrePeriode(string $dateDebut, string $dateFin) : Grand livre période
+- Tables utilisées : lignes_ecritures, ecritures_comptables, plan_comptable
+- Transactions : Non (lecture seule)
+- Validation débit/crédit : Non (lecture seule)
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+BalanceGeneraleService (563 lignes) :
+- Rôle : Génération de la balance générale
+- Méthodes publiques :
+  - genererBalance(string $dateFin) : Balance à une date
+  - verifierEquilibre(string $dateFin) : Vérifie équilibre débit/crédit
+- Tables utilisées : lignes_ecritures, ecritures_comptables, plan_comptable
+- Transactions : Non (lecture seule)
+- Validation débit/crédit : Oui (verifierEquilibre)
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+EtatsFinanciersService (473 lignes) :
+- Rôle : Génération des états financiers SYSCOA
+- Méthodes publiques :
+  - getBilan(?string $dateFin) : Bilan SYSCOA (classes 1-5)
+  - getCompteResultat(?string $dateDebut, ?string $dateFin) : Compte résultat (classes 6-7)
+  - getTresorerie(?string $dateDebut, ?string $dateFin) : Tableau trésorerie
+  - genererBilan(string $dateFin) : Alias getBilan
+  - genererCompteResultat(string $dateDebut, string $dateFin) : Alias getCompteResultat
+  - genererTableauTresorerie(string $dateDebut, string $dateFin) : Alias getTresorerie
+  - genererRapportTVA(string $dateDebut, string $dateFin) : Rapport TVA
+  - genererAnalyseFinanciere(string $dateDebut, string $dateFin) : Analyse financière
+  - exporterEtatsFinanciers(string $dateDebut, string $dateFin, string $type) : Export
+- Tables utilisées : lignes_ecritures, ecritures_comptables, plan_comptable, classes_comptes
+- Transactions : Non (lecture seule)
+- Validation débit/crédit : Oui (vérification équilibre bilan)
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+TVAService (483 lignes) :
+- Rôle : Gestion TVA
+- Méthodes publiques :
+  - initialiserTVA() : Initialise taux TVA (0%, 5.5%, 10%, 18%, 19.25%)
+  - calculerTVA(float $montantHT, float $taux) : Calcul TVA
+  - calculerHT(float $montantTTC, float $taux) : Calcul HT
+  - genererDeclarationTVA(string $dateDebut, string $dateFin) : Déclaration TVA
+  - genererRapportTVA(string $dateDebut, string $dateFin) : Rapport TVA
+- Tables utilisées : tva_taux, lignes_ecritures, ecritures_comptables, plan_comptable
+- Transactions : Non (lecture seule)
+- Validation débit/crédit : Non
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+IntegrationComptableService (708 lignes) :
+- Rôle : Intégration automatique opérations → comptabilité
+- Méthodes publiques :
+  - integrerVentes(string $dateDebut = null, string $dateFin = null) : Intègre ventes sans écriture
+  - integrerCommandes(string $dateDebut = null, string $dateFin = null) : Intègre commandes sans écriture
+  - integrerMouvementsCaisse(string $dateDebut = null, string $dateFin = null) : Intègre mouvements caisse sans écriture
+  - integrerStock(string $dateDebut = null, string $dateFin = null) : Intègre stock
+  - executerToutesIntegrations(string $dateDebut = null, string $dateFin = null) : Toutes intégrations
+  - forcerSynchronisation() : Synchronisation forcée
+- Tables utilisées : ventes, commandes, mouvements_caisse, mouvements_stock, ecritures_comptables
+- Transactions : Oui (beginTransaction/commit/rollBack)
+- Validation débit/crédit : Délègue à EcritureComptableService
+- Audit : Oui (via AuditService)
+- État : ✅ FONCTIONNEL
+
+SuiviTiersService (637 lignes) :
+- Rôle : Suivi créances clients et dettes fournisseurs
+- Méthodes publiques :
+  - getSuiviClientsComptable() : Suivi créances clients (compte 411)
+  - getSuiviFournisseursComptable() : Suivi dettes fournisseurs (compte 401)
+  - getAgeCreancesClients() : Âge créances clients
+  - getAgeDettesFournisseurs() : Âge dettes fournisseurs
+  - genererRapportTiers() : Rapport global tiers
+- Tables utilisées : clients, fournisseurs, ventes, receptions, lignes_ecritures, ecritures_comptables, plan_comptable
+- Transactions : Non (lecture seule)
+- Validation débit/crédit : Non
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+ReglementTiersService (297 lignes) :
+- Rôle : Règlements clients et fournisseurs
+- Méthodes publiques :
+  - getSuiviClients() : Suivi clients
+  - getHistoriqueClient(int $clientId) : Historique client
+  - enregistrerReglementClient(array $data, int $userId) : Enregistre règlement client
+  - getSuiviFournisseurs() : Suivi fournisseurs
+  - getHistoriqueFournisseur(int $fournisseurId) : Historique fournisseur
+  - enregistrerReglementFournisseur(array $data, int $userId) : Enregistre règlement fournisseur
+- Tables utilisées : clients, ventes, client_reglements, fournisseurs, receptions, fournisseur_reglements
+- Transactions : Oui (beginTransaction/commit/rollBack)
+- Validation débit/crédit : Non (pas d'écritures comptables générées)
+- Audit : Non
+- État : ⚠️ PARTIEL (pas d'écritures comptables)
+
+ExerciceComptableService (72 lignes) :
+- Rôle : Gestion exercices comptables
+- Méthodes publiques :
+  - assertEcritureAllowed(string $dateEcriture) : Refuse écriture hors période ouverte
+  - creerExercice(string $libelle, string $dateDebut, string $dateFin) : Crée exercice
+- Tables utilisées : exercices_comptables
+- Transactions : Oui (beginTransaction/commit/rollBack avec FOR UPDATE)
+- Validation débit/crédit : Non
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+ComptabiliteEcritureScope (23 lignes) :
+- Rôle : Scope lecture écritures valides
+- Méthodes publiques :
+  - valide(string $alias = 'ec') : Retourne clause WHERE pour écritures valides
+- Tables utilisées : ecritures_comptables
+- Transactions : Non
+- Validation débit/crédit : Non
+- Audit : Non
+- État : ✅ FONCTIONNEL
+
+================================================================================
+7. INVENTAIRE DES MODÈLES
+================================================================================
+
+Aucun modèle ORM détecté.
+
+L'application utilise une approche Service-First :
+- Les services accèdent directement à la base via PDO
+- Pas de modèles Eloquent, Doctrine, ou autre ORM
+- La logique métier est concentrée dans les services
+- L'accès aux données est direct via SQL dans les services
+
+État : ⚠️ MOYEN (acceptable mais moins structuré que MVC avec modèles)
+
+================================================================================
+8. INVENTAIRE DES VUES
+================================================================================
+
+Vues comptables présentes (13 vues) :
+
+Fichier | Fonctionnalité | Contrôleur | Route | Données attendues | État
+--------|---------------|------------|-------|------------------|------
+comptabilite/index.php | Dashboard comptable | ComptabiliteController | /comptabilite | stats, activitesRecentes | ✅
+comptabilite/plan_comptable.php | Plan comptable | ComptabiliteController | /comptabilite/plan-comptable | planComptable, classes, filtres | ✅
+comptabilite/journaux.php | Journaux généraux | ComptabiliteController | /comptabilite/journaux | journaux, ecritures | ✅
+comptabilite/journal_ventes.php | Journal des ventes | ComptabiliteController | /comptabilite/journaux/ventes | ecritures journal VT | ✅
+comptabilite/journal_achats.php | Journal des achats | ComptabiliteController | /comptabilite/journaux/achats | ecritures journal AC | ✅
+comptabilite/journal_caisses.php | Journal de caisse | ComptabiliteController | /comptabilite/journaux/caisse | ecritures journal CA | ✅
+comptabilite/grand_livre.php | Grand livre | ComptabiliteController | /comptabilite/grand-livre | grandLivre, compte, période | ✅
+comptabilite/balance.php | Balance générale | ComptabiliteController | /comptabilite/balance | balance, totaux | ✅
+comptabilite/etats_financiers.php | États financiers | ComptabiliteController | /comptabilite/etats-financiers | bilan, compteResultat, tresorerie | ✅
+comptabilite/suivi_tiers.php | Suivi tiers | ComptabiliteController | /comptabilite/suivi-tiers | clients, fournisseurs, soldes | ✅
+comptabilite/tva.php | Gestion TVA | ComptabiliteController | /comptabilite/tva | tauxTVA, declarations, rapports | ✅
+comptabilite/integration.php | Intégration comptable | ComptabiliteController | /comptabilite/integration | résultats intégration | ✅
+comptabilite/_helpers.php | Helpers vues | - | - | Fonctions utilitaires | ✅
+
+Anomalies vues :
+- Aucune anomalie détectée
+- Toutes les vues correspondent à des méthodes du contrôleur
+- Toutes les vues ont des routes correspondantes
+
+================================================================================
+9. STRUCTURE DE LA BASE DE DONNÉES
+================================================================================
+
+Tables comptables présentes :
+
+Table | Colonnes | Clé primaire | Clés étrangères | Index | État
+------|----------|--------------|----------------|-------|------
+plan_comptable | id, numero_compte, code, libelle, nom_compte, classe, classe_id, type, type_compte, etat_financier, is_actif, is_systeme, solde_initial, solde_actuel, parent_code, description, created_at, updated_at | id | - | numero_compte, code, classe | ✅
+journaux_comptables | id, code, libelle, type_journal, description, is_actif, type, couleur, is_systeme, created_at, updated_at | id | - | code, type | ✅
+ecritures_comptables | id, journal_id, numero_piece, libelle, date_ecriture, reference_type, reference_id, utilisateur_id, total_debit, total_credit, is_equilibree, ecriture_origine_id, created_at | id | journal_id, utilisateur_id | journal_id, date_ecriture, reference_type, reference_id | ✅
+lignes_ecritures | id, ecriture_id, compte_code, libelle, debit, credit, tiers_id, created_at | id | ecriture_id, tiers_id | ecriture_id, compte_code | ✅
+tva_taux | id, code, taux, libelle, description, is_actif, created_at, updated_at | id | - | code, taux | ✅
+exercices_comptables | id, exercice, date_debut, date_fin, statut, solde_precedent, total_debit, total_credit, solde_final, date_cloture, utilisateur_cloture_id, notes_cloture, created_at, updated_at | id | utilisateur_cloture_id | exercice, statut | ✅
+classes_comptes | ABSENTE | - | - | - | ❌
+rapports_comptables | ABSENTE | - | - | - | ❌
+soldes_comptables | ABSENTE | - | - | - | ❌
+
+Tables liées :
+
+Table | Colonnes | Clé primaire | Clés étrangères | Index | État
+------|----------|--------------|----------------|-------|------
+clients | id, code, nom, prenom, telephone, adresse, email, plafond_credit, solde_credit, is_actif, deleted_at, created_at, updated_at | id | - | code, nom | ✅
+fournisseurs | id, code, nom, telephone, adresse, email, is_actif, deleted_at, created_at, updated_at | id | - | code, nom | ✅
+ventes | id, numero_facture, numero_ticket, client_id, utilisateur_id, caisse_session_id, date_vente, montant_total, montant_net, montant_paye, montant_restant, type_paiement, is_credit, statut_vente, notes, ecriture_id, created_at, updated_at | id | client_id, utilisateur_id, caisse_session_id, ecriture_id | numero_facture, numero_ticket, date_vente, ecriture_id | ✅
+ventes_items | id, vente_id, produit_id, quantite, prix_unitaire, prix_total, remise, created_at | id | vente_id, produit_id | vente_id | ✅
+commandes | id, reference, fournisseur_id, utilisateur_id, date_commande, montant_total, statut_commande, notes, ecriture_id, created_at, updated_at | id | fournisseur_id, utilisateur_id, ecriture_id | reference, fournisseur_id, ecriture_id | ✅
+commande_items | id, commande_id, produit_id, quantite, prix_unitaire, prix_total, created_at | id | commande_id, produit_id | commande_id | ✅
+mouvements_caisse | id, caisse_session_id, type_mouvement, montant, moyen_paiement, reference, description, utilisateur_id, date_mouvement, solde_avant, solde_apres, supprime, ecriture_id, created_at | id | caisse_session_id, utilisateur_id, ecriture_id | caisse_session_id, utilisateur_id, date_mouvement, ecriture_id | ✅
+caisse_sessions | id, numero_session, caissier_id, date_ouverture, montant_ouverture, date_fermeture, montant_fermeture, montant_theorique, montant_ventes, ecart, statut_session, observations, created_at, updated_at | id | caissier_id | caissier_id, numero_session | ✅
+stock | id, produit_id, quantite, date_peremption, lot, created_at, updated_at | id | produit_id | produit_id, date_peremption | ✅
+produits | id, code, nom, description, prix_vente, prix_achat, stock_actuel, stock_min, is_actif, deleted_at, created_at, updated_at | id | - | code, nom | ✅
+audit_logs | id, utilisateur_id, action, table_name, record_id, old_values, new_values, ip_address, user_agent, date_action | id | utilisateur_id | utilisateur_id, table_name, date_action | ✅
+reglements_clients | id, client_id, montant, mode_paiement, reference, notes, utilisateur_id, date_reglement, created_at, updated_at | id | client_id, utilisateur_id | client_id, date_reglement | ✅
+fournisseur_reglements | id, fournisseur_id, reception_id, type_mouvement, montant, mode_paiement, reference, notes, utilisateur_id, date_mouvement | id | fournisseur_id, reception_id, utilisateur_id | fournisseur_id, date_mouvement | ✅
+
+Colonnes de liaison pour intégration :
+
+Table | Colonne ecriture_id | État
+------|---------------------|------
+ventes | ✅ Présente | ✅
+commandes | ✅ Présente | ✅
+mouvements_caisse | ✅ Présente | ✅
+mouvements_stock | ❌ Table absente | ❌
+
+Anomalies base de données :
+- Table classes_comptes ABSENTE (référencée dans EtatsFinanciersService)
+- Table rapports_comptables ABSENTE
+- Table soldes_comptables ABSENTE
+- Table mouvements_stock ABSENTE
+- Colonnes validation ABSENTES dans ecritures_comptables (statut, date_validation, utilisateur_validation_id)
+
+================================================================================
+10. PLAN COMPTABLE SYSCOA/OHADA
+================================================================================
+
+Comptes SYSCOHADA vérifiés dans plan_comptable :
+
+Compte | Présent | Libellé | Classe | Type | État
+-------|---------|---------|--------|------|------
+101 | ✅ | Capital | 1 | PASSIF | ✅
+401 | ✅ | Fournisseurs | 4 | PASSIF | ✅
+411 | ✅ | Clients | 4 | ACTIF | ✅
+44561 | ✅ | TVA déductible | 4 | ACTIF | ✅
+44571 | ✅ | TVA collectée | 4 | PASSIF | ✅
+571 | ✅ | Caisse | 5 | ACTIF | ✅
+701 | ✅ | Ventes de marchandises | 7 | PRODUIT | ✅
+311 | ✅ | Stock de marchandises | 3 | ACTIF | ✅
+31 | ✅ | Marchandises | 3 | ACTIF | ✅
+521 | ✅ | Banque | 5 | ACTIF | ✅
+6031 | ✅ | Achats consommés | 6 | CHARGE | ✅
+581 | ✅ | Virements internes | 5 | ACTIF | ✅
+75 | ✅ | Autres produits | 7 | PRODUIT | ✅
+
+Total comptes dans plan_comptable : 293
+
+Classes SYSCOA :
+- Classe 1 (Capitaux) : Présente
+- Classe 2 (Immobilisations) : Présente
+- Classe 3 (Stocks) : Présente
+- Classe 4 (Tiers) : Présente
+- Classe 5 (Trésorerie) : Présente
+- Classe 6 (Charges) : Présente
+- Classe 7 (Produits) : Présente
+- Classe 8 (Solde) : Présente
+
+Table classes_comptes :
+- État : ❌ ABSENTE
+- Impact : Les classes ne sont pas structurées selon SYSCOA complet
+- Workaround : Classe déduite du premier chiffre du numéro de compte
+
+Capacités du comptable :
+- ✅ Consulter les comptes
+- ✅ Rechercher un compte
+- ✅ Filtrer par classe
+- ✅ Créer un compte (via PlanComptableService)
+- ✅ Modifier un compte (via PlanComptableService)
+- ✅ Désactiver un compte (via PlanComptableService)
+- ⚠️ Classes non structurées (table absente)
+
+État : ⚠️ PARTIEL (comptes présents mais classes non structurées)
+
+================================================================================
+11. JOURNAUX COMPTABLES
+================================================================================
+
+Journaux présents dans journaux_comptables (5 journaux) :
+
+Code | Libellé | Type | Description | Couleur | État
+-----|---------|------|-------------|--------|------
+AC | Journal des Achats | ACHATS | Achats et factures fournisseurs | #ef4444 | ✅
+VT | Journal des Ventes | VENTES | Ventes au comptoir et ventes à crédit | #10b981 | ✅
+CA | Journal de Caisse | CAISSE | Encaissements et décaissements en espèces | #3b82f6 | ✅
+BQ | Journal de Banque | BANQUE | Opérations bancaires | #f59e0b | ✅
+OD | Journal des Opérations Diverses | DIVERS | Régularisations, inventaires et opérations diverses | #8b5cf6 | ✅
+
+Identification des journaux :
+- Par code (AC, VT, CA, BQ, OD)
+- Par ID (1-5)
+- Par type_journal (operations_diverses)
+
+Numérotation des écritures :
+- Format : CODE + DATE + ID (ex: VT20260821000001)
+- Génération automatique dans EcritureComptableService
+
+Rattachement écriture → journal :
+- Via colonne journal_id dans ecritures_comptables
+- Référence à journaux_comptables.id
+
+Types de journaux supportés :
+- ✅ Journal des achats (AC)
+- ✅ Journal des ventes (VT)
+- ✅ Journal de caisse (CA)
+- ✅ Journal de banque (BQ)
+- ✅ Journal des opérations diverses (OD)
+
+Capacités du comptable :
+- ✅ Consulter les journaux
+- ✅ Filtrer par journal
+- ✅ Voir les écritures par journal
+- ❌ Créer un journal (hardcoded dans JournalComptableService)
+- ❌ Modifier un journal
+- ❌ Supprimer un journal
+
+Validation :
+- ❌ NON implémentée (colonnes statut, date_validation, utilisateur_validation_id absentes)
+- Les écritures peuvent être modifiées après création
+
+Équilibre des journaux :
+- ✅ Vérifié via BalanceGeneraleService
+- ✅ Vérifié via verifierConformiteSyscoa dans ComptabiliteAvanceeService
+
+État : ✅ FONCTIONNEL (validation absente)
+
+================================================================================
+12. ÉCRITURES COMPTABLES
+================================================================================
+
+Cycle de vie des écritures :
+
+État actuel du cycle :
+1. Création ✅
+2. Brouillon ❌ ABSENT (colonne statut manquante)
+3. Contrôle ✅ (équilibre débit/crédit)
+4. Validation ❌ ABSENT (colonnes validation manquantes)
+5. Modification ❌ ABSENT (pas de protection)
+6. Clôture ❌ ABSENT (pas de mécanisme)
+7. Annulation ⚠️ PARTIEL (contre-passation incomplète)
+
+Données actuelles :
+- Total écritures : 76
+- Écritures non équilibrées : 0
+- Écritures validées : N/A (colonne manquante)
+- Écritures brouillon : N/A (colonne manquante)
+- Total lignes : 155
+- Lignes non équilibrées : 0
+
+Création automatique :
+- ✅ Ventes (via VenteService::creerVente ligne 104)
+- ✅ Réceptions (via EcritureComptableService::genererEcrituresReception)
+- ✅ Achats (via EcritureComptableService::genererEcrituresAchat)
+- ✅ Mouvements caisse (via EcritureComptableService::genererEcrituresCaisse)
+
+Création manuelle :
+- ❌ ABSENT (pas d'interface pour création manuelle)
+
+Statut :
+- ❌ Colonne statut ABSENTE dans ecritures_comptables
+- ❌ Colonne date_validation ABSENTE
+- ❌ Colonne utilisateur_validation_id ABSENTE
+- Impact : Impossible de distinguer brouillon/validé/annulé
+
+Validation :
+- ❌ NON implémentée
+- Impact : Les écritures peuvent être modifiées à tout moment
+- Impact : Pas de traçabilité de la validation
+
+Utilisateur ayant validé :
+- ❌ Colonne utilisateur_validation_id ABSENTE
+- Impact : Impossible de savoir qui a validé
+
+Date de validation :
+- ❌ Colonne date_validation ABSENTE
+- Impact : Impossible de savoir quand validé
+
+Interdiction de modification après validation :
+- ❌ ABSENT (pas de mécanisme de protection)
+- Impact : Les écritures validées peuvent être modifiées
+
+Équilibre débit/crédit :
+- ✅ Vérifié avant enregistrement (EcritureComptableService)
+- ✅ Vérification stricte < 0.01
+- ✅ Rollback si déséquilibre
+
+Suppression :
+- ❌ ABSENT (pas de mécanisme de suppression logique)
+- Impact : Les écritures ne peuvent pas être supprimées (bon)
+
+Annulation :
+- ⚠️ PARTIEL (méthode annulerEcritureVente existe)
+- ✅ Colonne ecriture_origine_id PRÉSENTE
+- ✅ Colonne reference_type PRÉSENTE
+- ❌ Méthode de contre-passation incomplète
+- ❌ Pas de vérification que l'originale est contre-passée
+
+Contre-passation :
+- ⚠️ PARTIEL
+- ComptabiliteEcritureScope::valide() exclut les écritures contre-passées
+- ❌ Pas de méthode explicite de contre-passation
+- ❌ Pas de lien bidirectionnel entre originale et contre-passation
+
+Traçabilité :
+- ✅ AuditService utilisé
+- ✅ 49 logs d'audit comptables présents
+- ✅ utilisateur_id tracé
+- ✅ date_action tracée
+
+État : ⚠️ PARTIEL (validation et contre-passation incomplètes)
+
+================================================================================
+13. INTÉGRATION AUTOMATIQUE AVEC LES OPÉRATIONS
+================================================================================
+
+Vente comptant :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Vente | ✅ OUI | VenteService::creerVente (ligne 104) | VT | 571 (caisse) + 701 (ventes) + 44571 (TVA) | ✅ FONCTIONNEL
+
+Détails :
+- VenteService::creerVente ligne 58 : prepareEcritures()
+- VenteService::creerVente ligne 104 : genererEcritureVente($vente['id'])
+- EcritureComptableService::genererEcrituresVente génère :
+  - Débit 571 (caisse) ou 411 (client si crédit)
+  - Crédit 701 (ventes)
+  - Crédit 44571 (TVA collectée si TVA > 0)
+- Vérification équilibre débit/crédit : ✅
+- Transaction : ✅
+- Audit : ✅
+
+Couverture : 70/72 ventes avec écritures (97%)
+
+Vente à crédit :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Vente crédit | ✅ OUI | VenteService::creerVente (ligne 104) | VT | 411 (client) + 701 (ventes) + 44571 (TVA) | ✅ FONCTIONNEL
+
+Détails :
+- Même logique que vente comptant
+- Compte 411 utilisé au lieu de 571
+- Suivi créance via SuiviTiersService
+
+Achat fournisseur :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Achat/réception | ❌ NON | CommandeController::storeReception | - | - | ❌ ABSENT
+
+Détails :
+- CommandeController::storeReception (ligne 88-122)
+- PAS d'appel à ComptabiliteService
+- PAS d'appel à EcritureComptableService
+- Les réceptions NE génèrent PAS automatiquement d'écritures comptables
+- IntegrationComptableService::integrerCommandes peut être appelé manuellement
+
+Couverture : 0/0 commandes avec écritures (0%)
+
+Règlement client :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Règlement client | ❌ NON | ReglementTiersService::enregistrerReglementClient | - | - | ❌ ABSENT
+
+Détails :
+- ReglementTiersService::enregistrerReglementClient (ligne 74-158)
+- PAS d'appel à EcritureComptableService
+- Les règlements NE génèrent PAS automatiquement d'écritures comptables
+- Met à jour solde_credit client mais PAS d'écriture comptable
+
+Règlement fournisseur :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Règlement fournisseur | ❌ NON | ReglementTiersService::enregistrerReglementFournisseur | - | - | ❌ ABSENT
+
+Détails :
+- ReglementTiersService::enregistrerReglementFournisseur (ligne 228-285)
+- PAS d'appel à EcritureComptableService
+- Les règlements NE génèrent PAS automatiquement d'écritures comptables
+
+Caisse - Encaissement :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Encaissement | ❌ NON | CaisseService::encaisser | - | - | ❌ ABSENT
+
+Détails :
+- CaisseService::encaisser existe mais PAS d'intégration comptable
+- IntegrationComptableService::integrerMouvementsCaisse peut être appelé manuellement
+
+Couverture : 5/16 mouvements caisse avec écritures (31%)
+
+Caisse - Décaissement :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Décaissement | ❌ NON | CaisseService::decaisser | - | - | ❌ ABSENT
+
+Détails :
+- Même problème que encaissement
+
+Banque :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Opérations banque | ❌ NON | - | - | - | ❌ ABSENT
+
+Détails :
+- Journal BQ existe mais PAS d'intégration automatique
+- Aucun service bancaire détecté
+
+TVA :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+TVA vente | ✅ OUI | EcritureComptableService::genererEcrituresVente | VT | 44571 (TVA collectée) | ✅ FONCTIONNEL
+TVA achat | ✅ OUI | EcritureComptableService::genererEcrituresReception | AC | 44561 (TVA déductible) | ✅ FONCTIONNEL
+
+Détails :
+- TVA collectée automatiquement sur ventes
+- TVA déductible automatiquement sur réceptions
+- Taux TVA : 0%, 18% (présents en base)
+
+Stock :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Mouvement stock | ❌ NON | - | - | - | ❌ ABSENT
+
+Détails :
+- Table mouvements_stock ABSENTE
+- IntegrationComptableService::integrerStock existe mais PAS appelé
+- Aucune écriture comptable sur mouvements de stock
+
+Ajustement de stock :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Ajustement stock | ❌ NON | StockController::ajustement | - | - | ❌ ABSENT
+
+Détails :
+- StockController::ajustement existe mais PAS d'intégration comptable
+
+Annulation de vente :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Annulation vente | ⚠️ PARTIEL | EcritureComptableService::annulerEcritureVente | OD | Inverse de la vente | ⚠️ PARTIEL
+
+Détails :
+- Méthode annulerEcritureVente existe
+- Crée une écriture avec reference_type = 'ANNULATION_VENTE'
+- ComptabiliteEcritureScope::valide() exclut ces écritures
+- ❌ PAS de contre-passation complète (pas de lien bidirectionnel)
+
+Avoir :
+
+Opération | Écriture automatique ? | Service responsable | Journal | Comptes utilisés | État
+----------|------------------------|-------------------|---------|----------------|------
+Avoir | ❌ NON | - | - | - | ❌ ABSENT
+
+Détails :
+- Aucun service d'avoir détecté
+- Aucune fonctionnalité d'avoir détectée
+
+État global intégration :
+- Ventes : ✅ FONCTIONNEL (97%)
+- Caisse : ⚠️ PARTIEL (31%)
+- Achats : ❌ ABSENT (0%)
+- Règlements clients : ❌ ABSENT
+- Règlements fournisseurs : ❌ ABSENT
+- Stock : ❌ ABSENT
+- Banque : ❌ ABSENT
+
+================================================================================
+14. CORRESPONDANCE OPÉRATIONS → COMPTES
+================================================================================
+
+Système de paramétrage comptable :
+
+État : ❌ ABSENT
+
+Configuration actuelle :
+- Les comptes sont HARDCODED dans PlanComptableService (constantes)
+- Exemple : COMPTE_CAISSE = '571', COMPTE_CLIENTS = '411', etc.
+- Aucune table de configuration détectée
+- Aucune interface de paramétrage détectée
+
+Correspondance actuelle (hardcoded) :
+
+Opération | Compte débit | Compte crédit | Source | Configurable
+----------|--------------|---------------|--------|---------------
+Vente comptant | 571 (caisse) | 701 (ventes) | PlanComptableService::COMPTE_CAISSE | ❌ NON
+Vente crédit | 411 (client) | 701 (ventes) | PlanComptableService::COMPTE_CLIENTS | ❌ NON
+TVA vente | - | 44571 (TVA collectée) | PlanComptableService::COMPTE_TVA_COLLECTEE | ❌ NON
+Achat/réception | 311 (stock) | 401 (fournisseur) | PlanComptableService::COMPTE_STOCK_MEDICAMENTS | ❌ NON
+TVA achat | 44561 (TVA déductible) | - | PlanComptableService::COMPTE_TVA_DEDUCTIBLE | ❌ NON
+Encaissement | 571 (caisse) | 411 (client) | PlanComptableService::COMPTE_CAISSE | ❌ NON
+Décaissement | Compte dépense | 571 (caisse) | JournalComptableService::getCompteDepense | ❌ NON
+
+Qui peut modifier :
+- ❌ Personne (hardcoded dans le code)
+
+Si configurable :
+- ❌ NON (hardcoded)
+
+Si réellement utilisé :
+- ✅ OUI (utilisé dans EcritureComptableService)
+
+État : ❌ ABSENT (hardcoded)
+
+================================================================================
+15. TVA
+================================================================================
+
+TVAService (483 lignes) :
+
+Méthodes publiques :
+- initialiserTVA() : Initialise taux TVA
+- calculerTVA(float $montantHT, float $taux) : Calcul TVA
+- calculerHT(float $montantTTC, float $taux) : Calcul HT
+- genererDeclarationTVA(string $dateDebut, string $dateFin) : Déclaration TVA
+- genererRapportTVA(string $dateDebut, string $dateFin) : Rapport TVA
+
+Taux TVA présents en base :
+
+Code | Taux | Libellé | État
+-----|------|---------|------
+TVA_0 | 0.00% | TVA 0% - Exonéré | ✅
+TVA_18 | 18.00% | TVA 18% - Taux normal | ✅
+
+Taux légaux OHADA (non présents) :
+- ❌ 5.5% (taux réduit)
+- ❌ 10% (taux intermédiaire)
+- ❌ 19.25% (taux spécifique)
+
+Comptes associés :
+- TVA collectée : 44571 (PlanComptableService::COMPTE_TVA_COLLECTEE)
+- TVA déductible : 44561 (PlanComptableService::COMPTE_TVA_DEDUCTIBLE)
+
+Calculs :
+- ✅ calculerTVA() : TVA = HT * taux
+- ✅ calculerHT() : HT = TTC / (1 + taux)
+- ✅ Vérification cohérence HT + TVA = TTC dans EcritureComptableService
+
+Intégration aux ventes :
+- ✅ EcritureComptableService::genererEcrituresVente (ligne 92-100)
+- TVA collectée créditée si montantTVA > 0.01
+
+Intégration aux achats :
+- ✅ EcritureComptableService::genererEcrituresReception (ligne 204-214)
+- TVA déductible débitée si montantTVA > 0
+
+États TVA :
+- ✅ genererDeclarationTVA() : Déclaration TVA
+- ✅ genererRapportTVA() : Rapport TVA
+- ✅ EtatsFinanciersService::genererRapportTVA() : Rapport TVA
+
+Cohérence avec données pharmacie :
+- ⚠️ Seuls 2 taux présents (0%, 18%)
+- ⚠️ Taux légaux OHADA incomplets
+- ✅ Taux utilisés dans les ventes
+
+État : ⚠️ PARTIEL (taux incomplets mais fonctionnel)
+
+================================================================================
+16. CLIENTS ET FOURNISSEURS
+================================================================================
+
+Clients :
+
+Table clients :
+- Colonnes : id, code, nom, prenom, telephone, adresse, email, plafond_credit, solde_credit, is_actif, deleted_at, created_at, updated_at
+- Clients actifs : 3
+- Clients avec crédit : 1
+
+Suivi créances :
+- ✅ SuiviTiersService::getSuiviClientsComptable()
+- ✅ Compte 411 utilisé
+- ✅ Calcul des créances depuis ventes
+- ✅ Âge des créances (getAgeCreancesClients)
+
+Règlements :
+- ✅ Table reglements_clients PRÉSENTE
+- ✅ ReglementTiersService::enregistrerReglementClient()
+- ❌ PAS d'écriture comptable automatique sur règlement
+- Types : DEBIT, CREDIT, RISTOURNE, ESCOMPTE
+
+Soldes :
+- ✅ solde_credit dans clients
+- ❌ PAS de lien automatique avec comptabilité
+- ❌ Les règlements mettent à jour solde_credit mais PAS d'écriture comptable
+
+Historique :
+- ✅ ReglementTiersService::getHistoriqueClient()
+- ✅ Ventes historiques
+- ✅ Règlements historiques
+
+Écritures comptables correspondantes :
+- ✅ Vente crédit → écriture automatique (compte 411)
+- ❌ Règlement client → PAS d'écriture automatique
+
+Fournisseurs :
+
+Table fournisseurs :
+- Colonnes : id, code, nom, telephone, adresse, email, is_actif, deleted_at, created_at, updated_at
+- Fournisseurs actifs : 1
+
+Suivi dettes :
+- ✅ SuiviTiersService::getSuiviFournisseursComptable()
+- ✅ Compte 401 utilisé
+- ✅ Calcul des dettes depuis réceptions
+- ✅ Âge des dettes (getAgeDettesFournisseurs)
+
+Règlements :
+- ✅ Table fournisseur_reglements PRÉSENTE
+- ✅ ReglementTiersService::enregistrerReglementFournisseur()
+- ❌ PAS d'écriture comptable automatique sur règlement
+- Types : DEBIT, CREDIT, RISTOURNE, ESCOMPTE
+
+Soldes :
+- ❌ PAS de solde_fournisseur dans fournisseurs
+- ❌ PAS de lien automatique avec comptabilité
+
+Historique :
+- ✅ ReglementTiersService::getHistoriqueFournisseur()
+- ✅ Réceptions historiques
+- ✅ Règlements historiques
+
+Écritures comptables correspondantes :
+- ❌ Réception → PAS d'écriture automatique
+- ❌ Règlement fournisseur → PAS d'écriture automatique
+
+État global :
+- Suivi créances/dettes : ✅ FONCTIONNEL
+- Règlements automatiques : ❌ ABSENT
+- Écritures automatiques : ⚠️ PARTIEL (ventes uniquement)
+
+================================================================================
+17. GRAND LIVRE
+================================================================================
+
+GrandLivreService (544 lignes) :
+
+Méthodes publiques :
+- getGrandLivreCompte(string $compteCode, string $dateDebut, string $dateFin) : Grand livre par compte
+- getGrandLivrePeriode(string $dateDebut, string $dateFin) : Grand livre période
+
+Sélection d'un compte :
+- ✅ Par compte_code
+- ✅ Filtre sur période (dateDebut, dateFin)
+
+Période :
+- ✅ dateDebut et dateFin paramétrables
+- ✅ Si non spécifiées, période complète
+
+Débit :
+- ✅ Calculé depuis lignes_ecritures.debit
+
+Crédit :
+- ✅ Calculé depuis lignes_ecritures.credit
+
+Solde :
+- ✅ Calculé (débit - crédit)
+
+Report :
+- ❌ ABSENT (pas de report de solde précédent)
+
+Cumul :
+- ✅ Cumul sur la période
+
+Cohérence avec les écritures :
+- ✅ Données provenant de lignes_ecritures
+- ✅ Joint avec ecritures_comptables
+- ✅ Joint avec plan_comptable
+
+Filtres :
+- ✅ Compte
+- ✅ Période
+
+Pagination :
+- ❌ ABSENT (pas de pagination)
+
+Export :
+- ❌ ABSENT (pas d'export dans GrandLivreService)
+
+État : ✅ FONCTIONNEL
+
+================================================================================
+18. BALANCE
+================================================================================
+
+BalanceGeneraleService (563 lignes) :
+
+Méthodes publiques :
+- genererBalance(string $dateFin) : Balance à une date
+- verifierEquilibre(string $dateFin) : Vérifie équilibre débit/crédit
+
+Comptes :
+- ✅ Tous les comptes de plan_comptable
+- ✅ Filtrés par classe SYSCOA (1-8)
+
+Solde initial :
+- ❌ ABSENT (pas de solde initial dans la balance)
+
+Mouvements :
+- ✅ Calculés depuis lignes_ecritures
+
+Débit :
+- ✅ Total débit par compte
+
+Crédit :
+- ✅ Total crédit par compte
+
+Solde final :
+- ✅ Calculé (débit - crédit)
+
+Équilibre global :
+- ✅ Vérifié via verifierEquilibre()
+- ✅ Règle : total débit = total crédit
+- ✅ Tolérance : 0.01
+
+Vérification de l'équilibre :
+```php
+// BalanceGeneraleService
+if (abs($totalDebit - $totalCredit) > 0.01) {
+    return ['equilibre' => false, 'ecart' => abs($totalDebit - $totalCredit)];
+}
+```
+
+État : ✅ FONCTIONNEL
+
+================================================================================
+19. ÉTATS FINANCIERS
+================================================================================
+
+EtatsFinanciersService (473 lignes) :
+
+Méthodes publiques :
+- getBilan(?string $dateFin) : Bilan SYSCOA
+- getCompteResultat(?string $dateDebut, ?string $dateFin) : Compte de résultat SYSCOA
+- getTresorerie(?string $dateDebut, ?string $dateFin) : Tableau trésorerie
+- genererBilan(string $dateFin) : Alias getBilan
+- genererCompteResultat(string $dateDebut, string $dateFin) : Alias getCompteResultat
+- genererTableauTresorerie(string $dateDebut, string $dateFin) : Alias getTresorerie
+- genererRapportTVA(string $dateDebut, string $dateFin) : Rapport TVA
+- genererAnalyseFinanciere(string $dateDebut, string $dateFin) : Analyse financière
+- exporterEtatsFinanciers(string $dateDebut, string $dateFin, string $type) : Export
+
+Bilan :
+
+Source des données :
+- ✅ lignes_ecritures
+- ✅ ecritures_comptables
+- ✅ plan_comptable
+- ✅ classes_comptes (si présente)
+
+Comptes utilisés :
+- ✅ Classes 1-5 (actif/passif SYSCOA)
+
+Formules :
+- ✅ Actif = classes 2, 3, 5 (solde positif)
+- ✅ Passif = classes 1, 4 (solde négatif)
+- ✅ Total actif = somme comptes actif
+- ✅ Total passif = somme comptes passif
+- ✅ Écart = |total actif - total passif|
+
+Regroupements :
+- ✅ Par classe SYSCOA
+- ✅ Par section (actif/passif)
+
+Période :
+- ✅ dateFin paramétrable
+- ✅ Cumul depuis le début
+
+Cohérence avec la balance :
+- ✅ Données identiques à la balance
+- ✅ Équilibre vérifié
+
+État : ✅ FONCTIONNEL
+
+Compte de résultat :
+
+Source des données :
+- ✅ lignes_ecritures
+- ✅ ecritures_comptables
+- ✅ plan_comptable
+- ✅ classes_comptes (si présente)
+
+Comptes utilisés :
+- ✅ Classes 6-7 (charges/produits SYSCOA)
+
+Formules :
+- ✅ Charges = classe 6 (solde positif)
+- ✅ Produits = classe 7 (solde négatif)
+- ✅ Résultat = total produits - total charges
+- ✅ Marge = (résultat / total produits) * 100
+
+Regroupements :
+- ✅ Par classe SYSCOA
+- ✅ Par type (charges/produits)
+
+Période :
+- ✅ dateDebut et dateFin paramétrables
+- ✅ Mouvements sur la période (pas cumul)
+
+Cohérence avec la balance :
+- ✅ Données cohérentes avec la balance
+
+État : ✅ FONCTIONNEL
+
+Trésorerie :
+
+Source des données :
+- ✅ lignes_ecritures
+- ✅ ecritures_comptables
+- ✅ plan_comptable
+
+Comptes utilisés :
+- ✅ Comptes commençant par 521 (banque)
+- ✅ Comptes commençant par 571 (caisse)
+- ✅ Comptes commençant par 578 (mobile money)
+- ✅ Comptes commençant par 552 (virements internes)
+
+Formules :
+- ✅ Entrées = total débit
+- ✅ Sorties = total crédit
+- ✅ Solde final = solde initial + (entrées - sorties)
+
+Regroupements :
+- ✅ Par type (banque, caisse, mobile_money, virements_internes)
+
+Période :
+- ✅ dateDebut et dateFin paramétrables
+
+État : ✅ FONCTIONNEL
+
+Autres états :
+- ❌ Aucun autre état détecté
+
+État global : ✅ FONCTIONNEL
+
+================================================================================
+20. EXERCICES COMPTABLES
+================================================================================
+
+Table exercices_comptables :
+
+Colonnes :
+- id, exercice, date_debut, date_fin, statut, solde_precedent, total_debit, total_credit, solde_final, date_cloture, utilisateur_cloture_id, notes_cloture, created_at, updated_at
+
+Exercice actuel :
+- Exercice : 2026
+- Date début : 2026-01-01
+- Date fin : 2026-12-31
+- Statut : ouvert
+- Solde précédent : 0.00
+- Total débit : 0.00
+- Total crédit : 0.00
+- Solde final : 0.00
+
+Exercices ouverts :
+- 1 (exercice 2026)
+
+Création :
+- ✅ ExerciceComptableService::creerExptable()
+- ✅ Vérification chevauchement
+- ✅ Verrouillage FOR UPDATE (un seul exercice ouvert)
+- ✅ Transaction
+
+Ouverture :
+- ✅ Statut 'ouvert'
+- ✅ Exercice 2026 ouvert
+
+Clôture :
+- ✅ ComptabiliteAvanceeService::cloturerExercice()
+- ✅ Vérification statut
+- ✅ Calcul des totaux
+- ✅ Mise à jour statut = 'CLOTURE'
+- ✅ Date de clôture
+- ✅ Utilisateur clôture
+- ✅ Notes de clôture
+- ✅ Création exercice suivant
+- ✅ Génération bilan de clôture
+- ✅ Transaction
+
+Exercice actif :
+- ✅ Exercice 2026 actif
+
+Verrouillage :
+- ✅ Exercice clôturé verrouillé
+- ❌ PAS de vérification de date d'écriture vs exercice ouvert
+
+Report des soldes :
+- ⚠️ PARTIEL (solde_precedent présent mais PAS de report automatique)
+
+À-nouveaux :
+- ❌ ABSENT (pas de mécanisme d'à-nouveaux)
+
+État : ⚠️ PARTIEL (fonctionnel mais report des soldes incomplet)
+
+================================================================================
+21. PÉRIODES COMPTABLES
+================================================================================
+
+Périodes comptables :
+
+État : ❌ ABSENT
+
+Table périodes :
+- ❌ Aucune table de périodes détectée
+- ❌ Aucune table mois_périodes détectée
+- ❌ Aucune table periodes_comptables détectée
+
+Gestion par exercice :
+- ✅ Exercices comptables présents
+- ⚠️ PAS de gestion mensuelle
+
+Ouverture :
+- ❌ ABSENT (pas d'ouverture mensuelle)
+
+Clôture :
+- ❌ ABSENT (pas de clôture mensuelle)
+
+Verrouillage :
+- ❌ ABSENT (pas de verrouillage mensuel)
+
+Réouverture :
+- ❌ ABSENT (pas de réouverture mensuelle)
+
+Contrôle des dates d'écritures :
+- ❌ ABSENT (pas de vérification date vs période)
+- ⚠️ ExerciceComptableService::assertEcritureAllowed() existe mais PAS utilisé
+
+État : ❌ ABSENT (gestion par exercice uniquement)
+
+================================================================================
+22. RÔLE DU COMPTABLE
+================================================================================
+
+Rôle COMPTABLE en base :
+
+- ID : 6
+- Nom : COMPTABLE
+- Code : COMPTABLE
+- Libellé : Comptable
+- Description : Responsable de la comptabilité et du suivi comptable de la pharmacie
+- Level : 5
+- is_actif : 1
+- statut : 1
+
+Permissions COMPTABLE (15 permissions) :
+
+Code | Description | État
+-----|-------------|------
+comptabilite_view | Accéder au module comptabilité | ✅
+plan_comptable_view | Voir le plan comptable | ✅
+ecritures_view | Voir les écritures comptables | ✅
+journaux_view | Voir les journaux comptables | ✅
+journal_ventes_view | Voir le journal des ventes | ✅
+journal_achats_view | Voir le journal des achats | ✅
+journal_caisse_view | Voir le journal de caisse | ✅
+grand_livre_view | Voir le grand livre | ✅
+balance_view | Voir la balance générale | ✅
+etats_financiers_view | Voir les états financiers | ✅
+suivi_tiers_view | Voir le suivi des tiers | ✅
+creances_view | Voir les créances clients | ✅
+dettes_view | Voir les dettes fournisseurs | ✅
+tva_view | Voir la TVA | ✅
+integration_view | Voir l'intégration comptable | ✅
+
+Capacités actuelles du comptable :
+
+Consulter :
+- ✅ Plan comptable
+- ✅ Journaux
+- ✅ Écritures
+- ✅ Grand livre
+- ✅ Balance
+- ✅ États financiers
+- ✅ Suivi tiers
+- ✅ TVA
+- ✅ Intégration
+
+Créer :
+- ⚠️ Compte (via service mais PAS d'interface)
+- ❌ Écriture manuelle (PAS d'interface)
+- ❌ Journal (hardcoded)
+- ❌ Exercice (via service mais PAS d'interface)
+
+Modifier :
+- ⚠️ Compte (via service mais PAS d'interface)
+- ❌ Écriture (PAS de protection)
+- ❌ Journal (hardcoded)
+
+Valider :
+- ❌ Écriture (validation NON implémentée)
+- ❌ Journal (validation NON implémentée)
+
+Annuler :
+- ⚠️ Écriture vente (méthode existe mais incomplète)
+- ❌ Écriture manuelle
+
+Paramétrer :
+- ❌ Comptes (hardcoded)
+- ❌ Correspondance opérations → comptes (hardcoded)
+
+Clôturer :
+- ⚠️ Exercice (via service mais PAS d'interface)
+
+Comparaison avec rôle COMPTABLE attendu :
+
+Fonctionnalité | Attendu | Actuel | État
+---------------|---------|--------|------
+Consulter plan comptable | ✅ | ✅ | ✅
+Consulter journaux | ✅ | ✅ | ✅
+Consulter écritures | ✅ | ✅ | ✅
+Consulter grand livre | ✅ | ✅ | ✅
+Consulter balance | ✅ | ✅ | ✅
+Consulter états financiers | ✅ | ✅ | ✅
+Consulter TVA | ✅ | ✅ | ✅
+Créer écriture manuelle | ✅ | ❌ | ❌
+Modifier écriture | ✅ | ⚠️ | ⚠️ (sans protection)
+Valider écriture | ✅ | ❌ | ❌
+Annuler écriture | ✅ | ⚠️ | ⚠️ (incomplet)
+Créer compte | ✅ | ⚠️ | ⚠️ (sans interface)
+Modifier compte | ✅ | ⚠️ | ⚠️ (sans interface)
+Paramétrer comptes | ✅ | ❌ | ❌
+Clôturer exercice | ✅ | ⚠️ | ⚠️ (sans interface)
+
+État : ⚠️ PARTIEL (permissions OK mais capacités incomplètes)
+
+================================================================================
+23. PERMISSIONS
+================================================================================
+
+Permissions COMPTABLE :
+
+15 permissions présentes (voir section 22)
+
+Contrôle d'accès :
+
+ComptabiliteController :
+- requireComptabiliteAccess() ligne 71-74
+- Appelle requirePermission() avec permission spécifique
+- ✅ Contrôle fonctionnel
+
+Autres contrôleurs :
+- VenteController : requirePermission('vente.view')
+- CaisseController : requirePermission('caisse.view')
+- CommandeController : requireAuth() uniquement
+
+Middleware :
+- BaseController::requirePermission()
+- RBACService::hasPermission()
+- ✅ Contrôle fonctionnel
+
+Bypass :
+- ❌ Aucun bypass détecté
+- ✅ COMPTABLE ne peut pas accéder aux autres modules
+- ✅ denyChargeCommandeRestrictedModules() NON utilisé dans ComptabiliteController (COMPTABLE autorisé)
+
+État : ✅ FONCTIONNEL
+
+================================================================================
+24. SÉCURITÉ
+================================================================================
+
+Authentification :
+- ✅ BaseController::requireAuth()
+- ✅ BaseController::isLoggedIn()
+- ✅ Session management
+- ✅ Contrôle fonctionnel
+
+Autorisation :
+- ✅ BaseController::requirePermission()
+- ✅ RBACService::hasPermission()
+- ✅ Contrôle fonctionnel
+
+Permissions :
+- ✅ 15 permissions COMPTABLE
+- ✅ Contrôle fonctionnel
+
+CSRF :
+- ✅ CsrfService.php présent
+- ✅ Tokens CSRF générés pour les formulaires
+- ❌ ComptabiliteController@api() POST : PAS de vérification CSRF explicite
+- ❌ ComptabiliteController@integration() POST : PAS de vérification CSRF explicite
+
+Audit :
+- ✅ AuditService présent
+- ✅ 49 logs d'audit comptables
+- ✅ Traçabilité des actions
+
+Séparation des responsabilités :
+- ✅ Rôle COMPTABLE séparé
+- ✅ Permissions spécifiques
+- ✅ Contrôle d'accès fonctionnel
+
+Protection des écritures validées :
+- ❌ ABSENT (validation NON implémentée)
+- ❌ Les écritures peuvent être modifiées à tout moment
+
+Accès aux données comptables sensibles :
+- ✅ RBAC fonctionnel
+- ✅ Permissions spécifiques
+
+Opérations POST/PUT/DELETE du module comptable :
+- POST /comptabilite/integration : ⚠️ PAS de vérification CSRF explicite
+- POST /comptabilite/api : ⚠️ PAS de vérification CSRF explicite
+
+État : ⚠️ MOYEN (CSRF non explicitement vérifié dans ComptabiliteController)
+
+================================================================================
+25. AUDIT ET TRAÇABILITÉ
+================================================================================
+
+AuditService (320 lignes) :
+
+Méthodes publiques :
+- logAction() : Enregistre action dans audit_logs
+- getAuditLogs() : Récupère logs pour une table
+- getAllAuditLogs() : Récupère tous les logs avec traduction
+
+Table audit_logs :
+- Colonnes : id, utilisateur_id, action, table_name, record_id, old_values, new_values, ip_address, user_agent, date_action
+- Index : utilisateur_id, table_name, date_action
+
+Actions comptables enregistrées :
+- ✅ Création écriture
+- ✅ Modification écriture (si implémentée)
+- ⚠️ Validation écriture (NON implémentée)
+- ⚠️ Annulation écriture (partielle)
+- ❌ Suppression écriture (NON implémentée)
+- ❌ Clôture opérationnelle (NON implémentée)
+- ✅ Modification plan comptable
+- ✅ Modification journaux
+- ⚠️ Modification paramètres comptables (hardcoded)
+
+Logs comptables présents :
+- Total : 49
+- Tables : ecritures_comptables, lignes_ecritures, plan_comptable, journaux_comptables
+- Actions : COMPTABILITE_OPERATION
+
+Traçabilité :
+- ✅ utilisateur_id tracé
+- ✅ date_action tracé
+- ✅ table_name tracé
+- ✅ record_id tracé
+- ✅ old_values tracé
+- ✅ new_values tracé
+- ✅ ip_address tracé
+- ✅ user_agent tracé
+
+État : ✅ FONCTIONNEL
+
+================================================================================
+26. TESTS EXISTANTS
+================================================================================
+
+Scripts de test présents :
+
+Script | Objectif | Données utilisées | Résultat attendu | Résultat vérifiable | État
+-------|----------|------------------|-----------------|-------------------|------
+audit_comptabilite_phase1.php | Audit base de données | Base réelle | JSON audit | ✅ | ✅
+audit_comptabilite_complet.php | Audit complet | Base réelle | JSON audit | ✅ | ✅
+migrer_comptabilite.php | Migration comptable | - | Migration exécutée | ✅ | ✅
+test_comptabilite_http.php | Tests HTTP | - | Réponses HTTP | ✅ | ✅
+validate_comptabilite_phase2.php | Validation phase 2 | - | Validation | ✅ | ✅
+validate_comptabilite_phase3.php | Validation phase 3 | - | Validation | ✅ | ✅
+
+Tests de cohérence en lecture seule :
+
+Test | Description | Résultat | État
+-----|-------------|----------|------
+Test 1 | Existe-t-il réellement des journaux ? | ✅ 5 journaux présents | ✅
+Test 2 | Existe-t-il réellement des écritures ? | ✅ 76 écritures présentes | ✅
+Test 3 | Les écritures existantes sont-elles équilibrées ? | ✅ 0 déséquilibre | ✅
+Test 4 | Les comptes utilisés existent-ils dans plan_comptable ? | ✅ Tous présents | ✅
+Test 5 | Les journaux référencés existent-ils ? | ✅ Tous présents | ✅
+Test 6 | Les écritures validées peuvent-elles encore être modifiées ? | ❌ Validation absente | ❌
+Test 7 | Une vente réelle génère-t-elle une écriture comptable ? | ✅ 97% couverture | ✅
+Test 8 | Un encaissement génère-t-il une écriture ? | ❌ 31% couverture | ❌
+Test 9 | Un règlement client génère-t-il une écriture ? | ❌ 0% couverture | ❌
+Test 10 | Un achat/réception génère-t-il une écriture ? | ❌ 0% couverture | ❌
+
+État : ⚠️ PARTIEL (tests présents mais intégrations incomplètes)
+
+================================================================================
+27. INCOHÉRENCES DÉTECTÉES
+================================================================================
+
+Noms de tables différents entre PHP et SQL :
+- ❌ Aucune incohérence détectée
+
+Noms de colonnes différents :
+- ❌ Aucune incohérence détectée
+
+Anciennes tables encore référencées :
+- ❌ Aucune ancienne table détectée
+
+Anciennes routes :
+- ❌ Aucune ancienne route détectée
+
+Anciennes méthodes :
+- ❌ Aucune ancienne méthode détectée
+
+Services jamais appelés :
+- ⚠️ ComptabiliteAvanceeService (présent mais PAS utilisé dans ComptabiliteController)
+- ⚠️ ReglementTiersService (présent mais PAS d'intégration comptable)
+
+Permissions inexistantes :
+- ❌ Aucune permission inexistante détectée
+
+Permissions non attribuées :
+- ❌ Aucune permission non attribuée détectée
+
+Comptes inexistants :
+- ❌ Aucun compte inexistant détecté
+
+Journaux inexistants :
+- ❌ Aucun journal inexistant détecté
+
+ENUM incompatibles :
+- ❌ Aucune incompatibilité ENUM détectée
+
+Références à des colonnes supprimées :
+- ❌ Aucune référence à colonne supprimée détectée
+
+Requêtes SQL incompatibles avec MySQL 8+ :
+- ❌ Aucune incompatibilité détectée
+
+Erreurs de logique débit/crédit :
+- ❌ Aucune erreur de logique détectée
+
+Écritures déséquilibrées :
+- ❌ Aucune écriture déséquilibrée détectée (0/76)
+
+Transactions manquantes :
+- ❌ Aucune transaction manquante détectée dans les services critiques
+
+Écritures comptables créées mais non validées :
+- ⚠️ Toutes les écritures (validation NON implémentée)
+
+Opérations commerciales sans écriture comptable :
+- ⚠️ 1/72 ventes sans écriture
+- ⚠️ 11/16 mouvements caisse sans écriture
+- ❌ 0/0 commandes sans écriture (0% couverture)
+- ❌ Tous les règlements sans écriture
+
+Écritures comptables sans opération source :
+- ❌ Aucune écriture sans opération source détectée
+
+État : ⚠️ INCOHÉRENCES MINEURES (services non utilisés, intégrations incomplètes)
+
+================================================================================
+28. TABLEAU SYNTHÉTIQUE DES FONCTIONNALITÉS
+================================================================================
+
+Fonctionnalité | Existe | Fonctionne | Partielle | Absente | Problème
+---------------|--------|------------|----------|---------|----------
+Plan comptable | ✅ | ✅ | | | Classes non structurées
+Journaux | ✅ | ✅ | | | Validation absente
+Écritures | ✅ | ✅ | | | Validation absente
+Validation | ❌ | | | ❌ | Colonnes manquantes
+Vente → comptabilité | ✅ | ✅ | | | 1 vente sans écriture
+Achat → comptabilité | ❌ | | | ❌ | Intégration absente
+Caisse → comptabilité | ✅ | | ✅ | | 31% couverture
+Banque → comptabilité | ❌ | | | ❌ | Intégration absente
+Clients | ✅ | ✅ | | | Règlements sans écriture
+Fournisseurs | ✅ | ✅ | | | Règlements sans écriture
+TVA | ✅ | ✅ | | | Taux incomplets
+Grand livre | ✅ | ✅ | | | Pagination absente
+Balance | ✅ | ✅ | | | -
+Bilan | ✅ | ✅ | | | -
+Compte de résultat | ✅ | ✅ | | | -
+Trésorerie | ✅ | ✅ | | | -
+Exercices | ✅ | ✅ | | | Report soldes incomplet
+Périodes | ❌ | | | ❌ | Absent
+Clôture | ✅ | ✅ | | | Sans interface
+Audit | ✅ | ✅ | | | -
+Paramétrage comptable | ❌ | | | ❌ | Hardcoded
+Contre-passation | ⚠️ | | ⚠️ | | Incomplète
+
+Légende :
+- ✅ = FONCTIONNEL
+- ⚠️ = PARTIEL
+- ❌ = ABSENT
+
+================================================================================
+29. PROBLÈMES CLASSÉS PAR PRIORITÉ
+================================================================================
+
+🔴 CRITIQUE (3 problèmes)
+
+1. Validation des écritures ABSENTE
+   - Colonnes statut, date_validation, utilisateur_validation_id absentes
+   - Impact : Les écritures peuvent être modifiées à tout moment
+   - Preuve : audit['colonnes_validation']['statut'] = false
+   - Correction : Ajouter colonnes validation + logique de protection
+
+2. Intégration achats ABSENTE
+   - CommandeController n'appelle pas ComptabiliteService
+   - Impact : Les achats ne génèrent pas d'écritures comptables
+   - Preuve : audit['integration_commandes']['avec_ecriture'] = 0
+   - Correction : Intégrer ComptabiliteService dans CommandeController
+
+3. Intégration règlements ABSENTE
+   - ReglementTiersService ne génère pas d'écritures comptables
+   - Impact : Les règlements ne sont pas tracés en comptabilité
+   - Preuve : ReglementTiersService::enregistrerReglementClient sans écriture
+   - Correction : Ajouter génération d'écritures dans ReglementTiersService
+
+🟠 IMPORTANT (5 problèmes)
+
+4. Classes comptables SYSCOA ABSENTES
+   - Table classes_comptes absente
+   - Impact : Plan comptable non conforme SYSCOA complet
+   - Preuve : audit['classes'] = null
+   - Correction : Exécuter migration 007_create_comptabilite_tables.sql
+
+5. Périodes comptables ABSENTES
+   - Aucune gestion mensuelle
+   - Impact : Pas de contrôle périodique des écritures
+   - Preuve : Aucune table de périodes détectée
+   - Correction : Créer table périodes_comptables + logique
+
+6. Intégration caisse PARTIELLE
+   - 31% des mouvements caisse ont des écritures
+   - Impact : Incohérence entre caisse et comptabilité
+   - Preuve : audit['integration_caisse']['avec_ecriture'] = 5/16
+   - Correction : Intégrer EcritureComptableService dans CaisseService
+
+7. Contre-passation INCOMPLÈTE
+   - Méthode existe mais logique incomplète
+   - Impact : Annulations non traçables correctement
+   - Preuve : ComptabiliteEcritureScope::valide() exclut mais PAS de lien bidirectionnel
+   - Correction : Implémenter contre-passation complète avec lien bidirectionnel
+
+8. Paramétrage comptable HARDCODED
+   - Comptes hardcodés dans PlanComptableService
+   - Impact : Impossible de modifier les comptes sans modifier le code
+   - Preuve : PlanComptableService::COMPTE_CAISSE = '571' (constante)
+   - Correction : Créer table de configuration + interface de paramétrage
+
+🟡 MOYEN (4 problèmes)
+
+9. Table rapports_comptables ABSENTE
+   - Impact : Pas de persistance des rapports générés
+   - Preuve : audit['tables']['rapports_comptables'] = false
+   - Correction : Créer table rapports_comptables
+
+10. Table soldes_comptables ABSENTE
+    - Impact : Pas de cache des soldes calculés
+    - Preuve : audit['tables']['soldes_comptables'] = false
+    - Correction : Créer table soldes_comptables
+
+11. CSRF non explicitement vérifié dans ComptabiliteController
+    - Impact : Vulnérabilité potentielle sur POST
+    - Preuve : ComptabiliteController@api() POST sans vérification CSRF
+    - Correction : Ajouter CsrfService::isValid() dans les POST
+
+12. Report des soldes INCOMPLET
+    - Impact : Soldes non reportés automatiquement à l'exercice suivant
+    - Preuve : solde_precedent présent mais PAS de report automatique
+    - Correction : Implémenter report automatique des soldes
+
+🟢 AMÉLIORATION (3 problèmes)
+
+13. Pagination ABSENTE dans GrandLivreService
+    - Impact : Performance sur grands volumes
+    - Preuve : GrandLivreService sans pagination
+    - Correction : Ajouter pagination
+
+14. Export ABSENT dans GrandLivreService
+    - Impact : Pas d'export du grand livre
+    - Preuve : GrandLivreService sans export
+    - Correction : Ajouter export CSV/Excel
+
+15. Duplication EtatsFinancierService
+    - Impact : Confusion potentielle
+    - Preuve : EtatsFinanciersService et EtatFinancierService existent
+    - Correction : Fusionner ou supprimer l'un des deux
+
+================================================================================
+30. PLAN DE CORRECTION RECOMMANDÉ
+================================================================================
+
+PHASE 1 : Correction de la structure de la base (CRITIQUE)
+
+1. Exécuter la migration 007_create_comptabilite_tables.sql
+   - Créer la table classes_comptes
+   - Ajouter les colonnes SYSCOHADA à plan_comptable
+   - Créer la table rapports_comptables
+   - Créer la table soldes_comptables
+   - Insérer les classes SYSCOA 1-8
+
+2. Ajouter les colonnes de validation dans ecritures_comptables
+   - ALTER TABLE ecritures_comptables ADD COLUMN statut ENUM('BROUILLON', 'VALIDEE', 'ANNULEE')
+   - ALTER TABLE ecritures_comptables ADD COLUMN date_validation DATETIME
+   - ALTER TABLE ecritures_comptables ADD COLUMN utilisateur_validation_id INT
+
+PHASE 2 : Correction de l'intégration automatique (CRITIQUE)
+
+3. Intégrer ComptabiliteService dans CommandeController
+   - Injecter ComptabiliteService dans __construct()
+   - Appeler genererEcritureAchat() dans storeReception()
+   - Appeler annulerEcritureAchat() dans annulation
+
+4. Intégrer EcritureComptableService dans ReglementTiersService
+   - Injecter EcritureComptableService dans __construct()
+   - Appeler genererEcrituresReglement() dans enregistrerReglementClient()
+   - Appeler genererEcrituresReglement() dans enregistrerReglementFournisseur()
+
+5. Intégrer EcritureComptableService dans CaisseService
+   - Injecter EcritureComptableService dans __construct()
+   - Appeler genererEcrituresCaisse() dans tous les mouvements
+   - S'assurer que tous les mouvements génèrent des écritures
+
+PHASE 3 : Correction de la validation et de la contre-passation (CRITIQUE)
+
+6. Implémenter la validation des écritures
+   - Créer méthode validerEcriture() dans EcritureComptableService
+   - Vérifier l'équilibre débit/crédit
+   - Mettre à jour statut = 'VALIDEE'
+   - Enregistrer date_validation et utilisateur_validation_id
+   - Interdire la modification après validation
+
+7. Implémenter la contre-passation complète
+   - Créer méthode contrepasserEcriture() dans EcritureComptableService
+   - Créer une écriture inverse
+   - Lier l'originale et la contre-passation (ecriture_origine_id bidirectionnel)
+   - Marquer l'originale comme contre-passée
+   - Utiliser ComptabiliteEcritureScope::valide() pour exclure les contre-passations
+
+PHASE 4 : Correction du paramétrage comptable (IMPORTANT)
+
+8. Créer une table de configuration comptable
+   - CREATE TABLE configuration_comptable
+   - Colonnes : operation_type, compte_debit, compte_credit, actif
+   - Insérer les configurations par défaut
+
+9. Modifier PlanComptableService
+   - Remplacer les constantes par lecture depuis configuration_comptable
+   - Ajouter méthode getComptePourOperation()
+   - Ajouter méthode setComptePourOperation()
+
+10. Créer une interface de paramétrage
+    - Créer vue comptabilite/parametrage.php
+    - Créer méthode parametrage() dans ComptabiliteController
+    - Permettre au comptable de modifier les comptes par opération
+
+PHASE 5 : Correction des périodes comptables (IMPORTANT)
+
+11. Créer la table périodes_comptables
+    - Colonnes : id, exercice_id, mois, date_debut, date_fin, statut
+    - Créer 12 périodes par exercice
+
+12. Implémenter la gestion des périodes
+    - Créer PeriodeComptableService
+    - Méthode ouvrirPeriode()
+    - Méthode clorePeriode()
+    - Méthode assertEcritureAllowed() (vérifier date vs période)
+
+13. Intégrer la vérification des périodes
+    - Appeler assertEcritureAllowed() dans EcritureComptableService
+    - Refuser les écritures hors période ouverte
+
+PHASE 6 : Correction du report des soldes (MOYEN)
+
+14. Implémenter le report des soldes
+    - Dans ComptabiliteAvanceeService::cloturerExercice()
+    - Calculer les soldes finaux par compte
+    - Créer les écritures d'à-nouveaux dans le nouvel exercice
+    - Mettre à jour solde_precedent dans exercices_comptables
+
+PHASE 7 : Correction de la sécurité (MOYEN)
+
+15. Ajouter la vérification CSRF dans ComptabiliteController
+    - Ajouter CsrfService::isValid() dans api() POST
+    - Ajouter CsrfService::isValid() dans integration() POST
+    - Ajouter CsrfService::isValid() dans tous les POST futurs
+
+PHASE 8 : Améliorations (AMÉLIORATION)
+
+16. Ajouter la pagination dans GrandLivreService
+    - Ajouter paramètres page et perPage
+    - Implémenter la logique de pagination
+    - Mettre à jour la vue pour afficher la pagination
+
+17. Ajouter l'export dans GrandLivreService
+    - Créer méthode exportCSV()
+    - Créer méthode exportExcel()
+    - Ajouter les routes d'export
+
+18. Fusionner ou supprimer EtatsFinancierService
+    - Analyser la différence entre EtatsFinanciersService et EtatFinancierService
+    - Fusionner si nécessaire
+    - Supprimer le doublon
+
+PHASE 9 : Tests complets
+
+19. Tests de régression
+    - Tester l'accès COMPTABLE après corrections
+    - Tester les écritures après migration SYSCOA
+    - Tester les rapports et soldes
+    - Tester la contre-passation
+    - Tester la validation
+    - Tester les périodes comptables
+    - Tester le paramétrage comptable
+    - Tester l'intégration achats
+    - Tester l'intégration règlements
+    - Tester l'intégration caisse complète
+
+================================================================================
+CONCLUSION
+================================================================================
+
+Score global : 65/100
+
+Le module comptable est PARTIELLEMENT FONCTIONNEL mais nécessite des
+corrections importantes pour être conforme au standard SYSCOA/OHADA complet
+et pour garantir l'intégrité des données comptables.
+
+Points forts :
+- Architecture solide avec services dédiés
+- Écritures parfaitement équilibrées
+- Intégration ventes fonctionnelle
+- RBAC fonctionnel
+- Audit et traçabilité opérationnels
+
+Points à améliorer en priorité :
+- 🔴 Validation des écritures (CRITIQUE)
+- 🔴 Intégration achats (CRITIQUE)
+- 🔴 Intégration règlements (CRITIQUE)
+- 🟠 Classes comptables SYSCOA (IMPORTANT)
+- 🟠 Périodes comptables (IMPORTANT)
+- 🟠 Intégration caisse (IMPORTANT)
+- 🟠 Contre-passation (IMPORTANT)
+- 🟠 Paramétrage comptable (IMPORTANT)
+
+Recommandation : Commencer par la PHASE 1 (structure de la base) puis
+la PHASE 2 (intégration automatique) avant de passer aux fonctionnalités
+avancées.
+
+================================================================================
+FIN DU RAPPORT D'AUDIT
+================================================================================

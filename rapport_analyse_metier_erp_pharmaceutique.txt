@@ -1,0 +1,1882 @@
+================================================================================
+RAPPORT D'ANALYSE MÉTIER — ERP GESTION PHARMACEUTIQUE
+================================================================================
+Date : 1er septembre 2026
+Objectif : Analyse fonctionnelle et métier pour rapport de stage/mémoire
+Scope : Code, modèles, contrôleurs, services, routes, vues et base de données réellement présents
+
+================================================================================
+A. GESTION DES VENTES
+================================================================================
+
+1. ACTEURS CONCERNÉS
+- VENDEUR : Enregistre les ventes au point de vente
+- CLIENT : Achète les produits (optionnel pour ventes comptant)
+- ADMINISTRATEUR : Peut annuler des ventes, consulter l'historique
+- COMPTABLE : Consulte les écritures comptables générées
+
+2. ÉTAPES DU PROCESSUS DANS L'APPLICATION
+
+Étape 1 : Préparation de la vente
+- Le vendeur se connecte au module vente (VenteAuthController)
+- Vérification de la session de caisse ouverte
+- Sélection du client (optionnel pour ventes comptant)
+
+Étape 2 : Sélection des produits
+- Recherche de produits par nom, code CIP, code-barres, DCI
+- Ajout des produits au panier
+- Saisie des quantités
+- Application des remises (si autorisé par rôle)
+
+Étape 3 : Validation des ordonnances (si requis)
+- Système détecte automatiquement les produits nécessitant une ordonnance
+- Champs obligatoires : numéro_ordonnance, date_ordonnance, nom_medecin, structure_sanitaire, nom_patient, telephone_patient
+- Lien avec ordonnance existante possible
+
+Étape 4 : Calcul des montants
+- Calcul automatique du montant total
+- Calcul automatique de la remise
+- Calcul automatique du montant net
+- Calcul automatique du montant HT (basé sur taux TVA 18%)
+- Calcul automatique du montant TVA
+- Calcul automatique du montant TTC
+
+Étape 5 : Choix du mode de paiement
+- ESPECE, CARTE, CHEQUE, CREDIT, MOBILE_MONEY
+- Paiement comptant ou crédit
+- Saisie du montant payé
+
+Étape 6 : Validation et enregistrement
+- Contrôle de disponibilité du stock
+- Contrôle du plafond de crédit (si vente à crédit)
+- Validation des remises selon le rôle
+- Transaction ACID complète
+- Enregistrement de la vente
+- Déduction du stock
+- Enregistrement du mouvement de caisse
+- Génération de l'écriture comptable
+
+Étape 7 : Impression du ticket/facture
+- Numérotation automatique (numero_facture, numero_ticket)
+- Impression du reçu
+
+3. DONNÉES SAISIES
+
+Par le vendeur :
+- client_id (optionnel)
+- articles : [{produit_id, quantite, remise}]
+- type_paiement : ESPECE/CARTE/CHEQUE/CREDIT/MOBILE_MONEY
+- montant_paye
+- is_credit : true/false
+- suspendre : true/false (pour tickets suspendus)
+
+Ordonnance (si requis) :
+- numero_ordonnance
+- date_ordonnance
+- nom_medecin
+- structure_sanitaire
+- nom_patient
+- telephone_patient
+- observation
+
+4. DONNÉES AUTOMATIQUEMENT CALCULÉES OU MISES À JOUR
+
+Calculées automatiquement :
+- numero_facture (généré automatiquement)
+- numero_ticket (généré automatiquement)
+- montant_total = Σ(quantite × prix_unitaire)
+- montant_remise = Σ(montant_total × remise/100)
+- montant_net = montant_total - montant_remise
+- montant_ht = montant_net / (1 + taux_TVA)
+- montant_tva = montant_net - montant_ht
+- montant_ttc = montant_net
+- montant_restant = montant_net - montant_paye
+- statut_vente (calculé selon paiement)
+- statut_paiement (calculé selon paiement)
+
+Mises à jour automatiques :
+- Stock : quantite_disponible -= quantite vendue
+- Stock : quantite_theorique -= quantite vendue
+- Stock : valeur_stock -= (quantite × prix_achat)
+- Mouvement de stock enregistré (type_mouvement = 'SORTIE')
+- Mouvement de caisse enregistré (type_mouvement = 'VENTE')
+- Solde crédit client += montant (si vente à crédit)
+- Écriture comptable générée (si vente non suspendue)
+
+5. TABLES DE BASE DE DONNÉES CONCERNÉES
+
+- ventes : entête de la vente
+- ventes_items : lignes de la vente
+- ventes_credit : ventes à crédit
+- stock : stock des produits
+- mouvements_stock : mouvements de stock
+- caisse_sessions : session de caisse
+- mouvements_caisse : mouvements de caisse
+- clients : informations client
+- ordonnances : ordonnances médicales
+- vente_ordonnances : lien vente-ordonnance
+- vente_ordonnance_items : articles de l'ordonnance
+- paiement_details : détails de paiement
+- ecritures_comptables : écritures comptables
+- lignes_ecritures : lignes d'écritures comptables
+
+6. RÈGLES MÉTIER RÉELLEMENT IMPLÉMENTÉES
+
+Règle 1 : Disponibilité du stock
+- Contrôle systématique avant validation
+- Stock insuffisant = erreur bloquante
+- Contrôle sur quantite_disponible (pas de gestion par lots)
+
+Règle 2 : Ordonnance obligatoire
+- Produits avec requires_prescription = 1 nécessitent ordonnance
+- Produits avec type_delivrance spécifique nécessitent ordonnance
+- Champs obligatoires : numero_ordonnance, date_ordonnance, nom_medecin, structure_sanitaire, nom_patient, telephone_patient
+- Validation avant enregistrement
+
+Règle 3 : Remises par rôle
+- Validation des remises par DiscountLimitService
+- Plafond de remise par rôle
+- Remise non autorisée = erreur bloquante
+
+Règle 4 : Plafond de crédit client
+- Contrôle systématique pour ventes à crédit
+- solde_credit + montant <= plafond_credit
+- Plafond insuffisant = erreur bloquante
+- FOR UPDATE sur client pour éviter concurrence
+
+Règle 5 : TVA
+- Taux TVA par défaut : 18% (TVA_18)
+- Calcul automatique HT → TTC
+- Prix configurés sont TTC
+
+Règle 6 : Tickets suspendus
+- Pas d'impact sur stock, caisse ou comptabilité
+- Statut = 'EN_COURS'
+- Reprise possible par le même vendeur
+
+Règle 7 : Transaction ACID
+- Toute l'opération est transactionnelle
+- Rollback en cas d'erreur
+- Garantie de cohérence des données
+
+Règle 8 : Numérotation automatique
+- numero_facture unique
+- numero_ticket unique
+- Généré automatiquement par le système
+
+7. LIENS AVEC LES AUTRES MODULES
+
+Module Stock :
+- Déduction automatique du stock
+- Enregistrement du mouvement de stock
+- Contrôle de disponibilité
+
+Module Caisse :
+- Enregistrement du mouvement de caisse
+- Mise à jour du montant_ventes de la session
+- Lien avec caisse_session_id
+
+Module Comptabilité :
+- Génération automatique de l'écriture comptable
+- Débit : compte client ou caisse (571)
+- Crédit : compte ventes (701) et TVA collectée (44571)
+- Lien via ecriture_id
+
+Module Clients :
+- Mise à jour du solde crédit (si vente à crédit)
+- Création automatique de la créance
+
+Module Ordonnances :
+- Création ou lien avec ordonnance existante
+- Enregistrement des produits de l'ordonnance
+
+8. CONTRÔLES ET VALIDATIONS EFFECTUÉS
+
+Contrôle 1 : Authentification
+- Vérification de la connexion utilisateur
+- Vérification de la permission 'vente.view'
+
+Contrôle 2 : Session de caisse
+- Vérification de la session ouverte
+- Session fermée = impossible de vendre
+
+Contrôle 3 : Disponibilité du stock
+- Contrôle pour chaque article
+- Stock insuffisant = erreur bloquante
+
+Contrôle 4 : Ordonnance
+- Détection automatique des produits nécessitant ordonnance
+- Validation des champs obligatoires
+- Ordonnance manquante = erreur bloquante
+
+Contrôle 5 : Remises
+- Validation selon le rôle de l'utilisateur
+- Plafond de remise par rôle
+- Remise excessive = erreur bloquante
+
+Contrôle 6 : Crédit client
+- Contrôle du plafond de crédit
+- Plafond insuffisant = erreur bloquante
+
+Contrôle 7 : Données obligatoires
+- Nom, prénom, téléphone pour création client
+- Montant positif
+
+Contrôle 8 : Transaction ACID
+- Rollback en cas d'erreur
+- Garantie de cohérence
+
+9. STATUTS UTILISÉS
+
+statut_vente :
+- EN_COURS : Vente en cours ou suspendue
+- PAYEE : Vente payée intégralement
+- PARTIELLEMENT_PAYEE : Vente payée partiellement ou crédit
+- ANNULEE : Vente annulée
+
+statut_paiement :
+- en_attente : Paiement en attente
+- partiel : Paiement partiel
+- paye : Paiement complet
+- impaye : Impayé (crédit)
+
+type_vente :
+- COMPTANT : Vente comptant
+- CREDIT : Vente à crédit
+- ASSURANCE : Vente assurance
+
+type_paiement :
+- ESPECE
+- CARTE
+- CHEQUE
+- CREDIT
+- MOBILE_MONEY
+
+10. ÉVENTUELLES LIMITES OU FONCTIONNALITÉS INCOMPLÈTES
+
+Limite 1 : Gestion des lots
+- Le système fonctionne sans lots (StockService.php ligne 97-103)
+- lot_id est toujours null dans ventes_items
+- Pas de traçabilité par lot
+
+Limite 2 : Contre-passation comptable
+- Annulation de vente restaure le stock
+- Contre-passation comptable non confirmée dans le code
+
+Limite 3 : Prix spécifique par client
+- Prix unique par produit (prix_vente)
+- Pas de tarification personnalisée par client
+
+Limite 4 : Multi-paiement
+- paiement_details existe mais non clairement utilisé pour multi-paiement
+- Un seul type_paiement par vente
+
+================================================================================
+B. GESTION DES CLIENTS
+================================================================================
+
+1. TYPES DE CLIENTS RÉELLEMENT PRÉSENTS
+
+Type 1 : ORDINAIRE
+- type_client = 'ORDINAIRE'
+- Client standard sans assurance
+- Paiement comptant ou crédit (avec plafond)
+
+Type 2 : ASSURE
+- type_client = 'ASSURE'
+- Client avec assurance maladie
+- Informations spécifiques : numero_assurance, compagnie_assurance
+- Prix spécifique : prix_vente_assure dans produits
+
+Type 3 : ENTREPRISE
+- type_client = 'ENTREPRISE'
+- Client entreprise (B2B)
+- Informations spécifiques : numero_ifu, numero_rccm
+- Paiement comptant ou crédit (avec plafond)
+
+❌ Type BÉNÉFICIAIRE : NON IMPLÉMENTÉ
+❌ Type PRESCRIPTEUR : NON IMPLÉMENTÉ (géré via ordonnances)
+
+2. FONCTIONNEMENT PAR TYPE
+
+Client ORDINAIRE :
+- Création avec informations de base (nom, prénom, téléphone, adresse)
+- Plafond de crédit configurable (par défaut 0)
+- Solde de crédit suivi en temps réel
+- Paiement comptant ou crédit
+
+Client ASSURE :
+- Création avec informations de base + assurance
+- numero_assurance obligatoire
+- compagnie_assurance obligatoire
+- Prix_vente_assure appliqué automatiquement (si configuré)
+- Plafond de crédit configurable
+- Solde de crédit suivi en temps réel
+
+Client ENTREPRISE :
+- Création avec informations de base + entreprise
+- numero_ifu (Identifiant Fiscal Unique)
+- numero_rccm (Registre du Commerce)
+- Plafond de crédit configurable
+- Solde de crédit suivi en temps réel
+- Facturation B2B
+
+3. INFORMATIONS ENREGISTRÉES PAR CLIENT
+
+Informations de base :
+- code (généré automatiquement)
+- matricule (généré automatiquement si non fourni)
+- nom (obligatoire)
+- prenom (obligatoire)
+- date_naissance
+- age (calculé automatiquement)
+- telephone (obligatoire)
+- telephone_secondaire
+- email
+- adresse
+- ville
+
+Informations spécifiques :
+- type_client (ORDINAIRE/ASSURE/ENTREPRISE)
+- numero_assurance (pour ASSURE)
+- compagnie_assurance (pour ASSURE)
+- numero_ifu (pour ENTREPRISE)
+- numero_rccm (pour ENTREPRISE)
+
+Informations financières :
+- plafond_credit (par défaut 0)
+- solde_initial (par défaut 0)
+- solde_credit (calculé automatiquement)
+
+Autres :
+- is_actif (true/false)
+- notes
+- utilisateur_creation_id
+- created_at
+- updated_at
+- deleted_at (soft delete)
+
+4. RÈGLES MÉTIER RÉELLEMENT IMPLÉMENTÉES
+
+Règle 1 : Code unique
+- Code client généré automatiquement
+- Unicité garantie
+
+Règle 2 : Matricule unique
+- Matricule généré automatiquement (CLI + 6 chiffres)
+- Unicité vérifiée
+
+Règle 3 : Âge calculé
+- Âge calculé automatiquement à partir de date_naissance
+- Mis à jour si date_naissance modifiée
+
+Règle 4 : Plafond de crédit
+- Plafond >= 0 (validation)
+- Contrôle lors des ventes à crédit
+- solde_credit + montant <= plafond_credit
+
+Règle 5 : Solde crédit
+- Mis à jour automatiquement lors des ventes à crédit
+- Mis à jour automatiquement lors des règlements
+- FOR UPDATE pour éviter concurrence
+
+Règle 6 : Activation/Désactivation
+- is_actif = false : client inactif
+- Soft delete via deleted_at
+
+5. LIENS AVEC LES AUTRES MODULES
+
+Module Ventes :
+- client_id dans ventes
+- Contrôle du plafond de crédit
+- Mise à jour du solde crédit
+
+Module Finance :
+- Suivi des créances (FinanceController::clients)
+- Saisie de règlements (SuiviClientController)
+- Historique des règlements
+
+Module Comptabilité :
+- Écritures comptables liées au client
+- Suivi des tiers (SuiviTiersService)
+
+6. CONTRÔLES ET VALIDATIONS EFFECTUÉS
+
+Contrôle 1 : Champs obligatoires
+- Nom, prénom, téléphone obligatoires
+- Email valide si fourni
+
+Contrôle 2 : Plafond de crédit
+- Plafond >= 0
+- Validation à la création et modification
+
+Contrôle 3 : Unicité
+- Code unique
+- Matricule unique
+
+Contrôle 4 : Type de client
+- ENUM('ORDINAIRE', 'ASSURE', 'ENTREPRISE')
+- Validation du type
+
+7. STATUTS UTILISÉS
+
+is_actif :
+- true : Client actif
+- false : Client inactif
+
+statut_reglement (dans client_reglements) :
+- BROUILLON
+- VALIDE
+- SUPPRIME
+
+8. ÉVENTUELLES LIMITES OU FONCTIONNALITÉS INCOMPLÈTES
+
+Limite 1 : Pas de type BÉNÉFICIAIRE
+- Les bénéficiaires sont gérés comme clients ordinaires ou assurés
+- Pas de table dédiée
+
+Limite 2 : Pas de table dédiée pour les prescripteurs
+- Les prescripteurs sont gérés via ordonnances
+- Pas de fiche prescripteur
+
+Limite 3 : Pas de tarification personnalisée
+- Prix unique par produit
+- Pas de grille tarifaire par client
+
+================================================================================
+C. GESTION DES PRODUITS
+================================================================================
+
+1. INFORMATIONS ENREGISTRÉES
+
+Informations d'identification :
+- id (auto-increment)
+- code_cip (VARCHAR(13) UNIQUE) - Code CIP
+- code_barre (VARCHAR(50) UNIQUE) - Code-barres
+- nom (VARCHAR(200) NOT NULL) - Nom du produit
+- description (TEXT)
+
+Informations de classification :
+- categorie_id (référence categories)
+- dci (VARCHAR) - Dénomination Commune Internationale
+- forme_pharmaceutique (VARCHAR) - Forme pharmaceutique
+- classe_pharmaceutique (VARCHAR) - Classe pharmaceutique
+- rayon (VARCHAR) - Rayon/emplacement
+
+Informations de tarification :
+- prix_achat (DECIMAL(10,2) NOT NULL)
+- prix_vente (DECIMAL(10,2) NOT NULL)
+- prix_vente_assure (DECIMAL(10,2)) - Prix pour assurés
+- unite_mesure (VARCHAR(20) DEFAULT 'unité')
+
+Informations de stock :
+- stock_securite (INT DEFAULT 0) - Stock de sécurité
+- stock_alerte (INT DEFAULT 0) - Stock d'alerte
+- date_peremption_default (DATE) - Date de péremption par défaut
+
+Informations de réglementation :
+- requires_prescription (BOOLEAN DEFAULT FALSE) - Nécessite ordonnance
+- type_delivrance (VARCHAR) - Type de délivrance (ordonnancier, psychotrope, anticancéreux)
+
+Autres :
+- fournisseur_id (référence fournisseurs)
+- is_actif (BOOLEAN DEFAULT TRUE)
+- created_at
+- updated_at
+- deleted_at (soft delete)
+
+2. PRIX
+
+Prix d'achat :
+- prix_achat (DECIMAL(10,2) NOT NULL)
+- Saisi manuellement
+- Historique dans product_price_history
+
+Prix de vente :
+- prix_vente (DECIMAL(10,2) NOT NULL)
+- Calculé automatiquement : prix_achat × 1.48 (COEFFICIENT_MARGE_VENTE)
+- Peut être modifié manuellement (avec permission)
+- Historique dans product_price_history
+
+Prix vente assuré :
+- prix_vente_assure (DECIMAL(10,2))
+- Prix spécifique pour clients assurés
+- Optionnel
+
+Contrainte :
+- prix_vente >= prix_achat (CHECK constraint)
+
+3. CATÉGORIES / FORME PHARMACEUTIQUE
+
+Catégories :
+- Table categories (id, nom, description, parent_id)
+- Hiérarchie possible via parent_id
+- Référence dans produits.categorie_id
+
+Forme pharmaceutique :
+- Champ forme_pharmaceutique (VARCHAR) dans produits
+- Pas de table dédiée
+- Valeurs libres (comprimé, sirop, injectable, etc.)
+
+4. DCI (DÉNOMINATION COMMUNE INTERNATIONNELLE)
+
+- Champ dci (VARCHAR) dans produits
+- Pas de table dédiée
+- Valeur libre
+- Utilisé pour la recherche
+
+5. CLASSE PHARMACEUTIQUE
+
+- Champ classe_pharmaceutique (VARCHAR) dans produits
+- Pas de table dédiée
+- Valeur libre
+- Non lié aux classes comptables SYSCOA
+
+6. RAYON
+
+- Champ rayon (VARCHAR) dans produits
+- Pas de table dédiée
+- Valeur libre
+- Utilisé pour le filtrage (inventaire, stock)
+
+7. GESTION DES QUANTITÉS
+
+Stock réel :
+- quantite_disponible (INT) dans table stock
+- Mis à jour automatiquement lors des ventes/réceptions
+- Contrôle avant vente
+
+Stock théorique :
+- quantite_theorique (INT) dans table stock
+- Mis à jour automatiquement lors des mouvements
+- Écart calculé : quantite_disponible - quantite_theorique
+
+Stock réservé :
+- quantite_reservee (INT) dans table stock
+- Non clairement utilisé dans le code
+
+Valeur stock :
+- valeur_stock (DECIMAL(12,2)) dans table stock
+- Mis à jour automatiquement
+- Calcul : quantite_disponible × prix_achat moyen
+
+8. AUTRES INFORMATIONS RÉELLEMENT PRÉSENTES
+
+- requires_prescription : Indique si le produit nécessite une ordonnance
+- type_delivrance : Type de délivrance (ordonnancier, psychotrope, anticancéreux)
+- unite_mesure : Unité de mesure (unité, boîte, flacon, etc.)
+- description : Description détaillée
+- fournisseur_id : Fournisseur principal
+
+9. RÈGLES MÉTIER RÉELLEMENT IMPLÉMENTÉES
+
+Règle 1 : Prix vente >= Prix achat
+- Contrainte CHECK dans la base de données
+- Validation à la modification
+
+Règle 2 : Coefficient de marge
+- Calcul automatique : prix_achat × 1.48
+- Peut être modifié manuellement
+
+Règle 3 : Ordonnance obligatoire
+- requires_prescription = 1 → ordonnance obligatoire
+- type_delivrance spécifique → ordonnance obligatoire
+
+Règle 4 : Stock positif
+- quantite_disponible >= 0 (CHECK constraint)
+- Contrôle avant vente
+
+Règle 5 : Activation/Soft delete
+- is_actif = false : produit inactif
+- deleted_at : soft delete
+
+10. LIENS AVEC LES AUTRES MODULES
+
+Module Stock :
+- Table stock liée par produit_id
+- Mise à jour automatique
+
+Module Ventes :
+- Référence dans ventes_items
+- Contrôle de disponibilité
+
+Module Fournisseurs :
+- fournisseur_id dans produits
+- Lien avec commandes
+
+Module Catégories :
+- categorie_id dans produits
+- Hiérarchie possible
+
+11. CONTRÔLES ET VALIDATIONS EFFECTUÉS
+
+Contrôle 1 : Unicité
+- code_cip unique
+- code_barre unique
+
+Contrôle 2 : Prix
+- prix_vente >= prix_achat
+- Prix positifs
+
+Contrôle 3 : Stock
+- Stock positif
+- Contrôle avant vente
+
+12. ÉVENTUELLES LIMITES OU FONCTIONNALITÉS INCOMPLÈTES
+
+Limite 1 : Pas de tables dédiées
+- forme_pharmaceutique : champ VARCHAR
+- classe_pharmaceutique : champ VARCHAR
+- rayon : champ VARCHAR
+- dci : champ VARCHAR
+
+Limite 2 : Pas de gestion par lots
+- Le système fonctionne sans lots (StockService.php ligne 97-103)
+- Pas de traçabilité par lot
+
+Limite 3 : Pas de grille tarifaire
+- Prix unique par produit
+- Pas de tarification par quantité
+
+================================================================================
+D. GESTION DES STOCKS
+================================================================================
+
+1. ENTRÉES
+
+Types d'entrées :
+- Réception de commande fournisseur
+- Entrée directe (StockController::entreeDirecte)
+- Ajustement positif (StockController::ajustement)
+- Inventaire (écart positif)
+
+Processus réception commande :
+- ChargeCommandeService::receiveOrder
+- Agrégation des quantités reçues
+- Contrôle : quantite_recue <= reste à livrer
+- Mise à jour supplier_order_items.quantite_recue
+- Création reception et reception_items
+- Mise à jour stock automatique (addStock)
+- Enregistrement mouvement de stock (type_mouvement = 'ENTREE')
+- Enregistrement stock_entries (traçabilité)
+
+Processus entrée directe :
+- StockController::entreeDirecte
+- Saisie : produit_id, quantite, prix_achat, fournisseur_id, date_reception
+- Mise à jour stock automatique
+- Enregistrement mouvement de stock
+
+Processus ajustement :
+- StockController::ajustement
+- Saisie : produit_id, quantite, motif
+- Mise à jour stock automatique
+- Enregistrement mouvement de stock (type_mouvement = 'AJUSTEMENT')
+
+2. SORTIES
+
+Types de sorties :
+- Vente (VenteService::creerVente)
+- Sortie manuelle (ProduitController::sortieStock)
+- Ajustement négatif (StockController::ajustement)
+- Inventaire (écart négatif)
+- Perte (PeremptionService::traiterPerimes)
+
+Processus vente :
+- VenteService::ajouterArticlesVente
+- Contrôle disponibilité (StockService::verifierDisponibilite)
+- Déduction automatique du stock
+- Enregistrement mouvement de stock (type_mouvement = 'SORTIE')
+- Transaction ACID
+
+Processus sortie manuelle :
+- ProduitController::sortieStock
+- Saisie : produit_id, quantite, motif
+- Contrôle disponibilité
+- Déduction automatique du stock
+- Enregistrement mouvement de stock
+
+Processus perte (péremption) :
+- PeremptionService::traiterPerimes
+- Mise à jour stock à 0
+- Enregistrement mouvement de stock (type_mouvement = 'PERTE')
+
+3. MOUVEMENTS
+
+Table mouvements_stock :
+- id, produit_id, lot_id
+- type_mouvement : ENTREE, SORTIE, TRANSFERT, AJUSTEMENT, PERTE
+- quantite, quantite_avant, quantite_apres
+- motif
+- reference_type : VENTE, COMMAND, INVENTAIRE, AJUSTEMENT, TRANSFERT
+- reference_id
+- utilisateur_id
+- date_mouvement
+
+Enregistrement automatique :
+- Chaque mouvement de stock est enregistré
+- quantite_avant et quantite_apres tracés
+- reference_type et reference_id pour traçabilité
+- Contrainte : quantite > 0
+
+4. STOCK RÉEL
+
+- quantite_disponible (INT) dans table stock
+- Stock physique disponible
+- Mis à jour automatiquement
+- Contrôle avant vente
+- Calcul : quantite_disponible = Σ(entrées) - Σ(sorties)
+
+5. STOCK THÉORIQUE
+
+- quantite_theorique (INT) dans table stock
+- Stock attendu selon les mouvements
+- Mis à jour automatiquement
+- Écart : quantite_disponible - quantite_theorique
+- Utilisé pour détecter les anomalies
+
+6. SEUILS D'ALERTE
+
+stock_securite :
+- Stock de sécurité (INT)
+- Niveau critique
+- Alertes si quantite_disponible <= stock_securite
+
+stock_alerte :
+- Stock d'alerte (INT)
+- Niveau d'alerte
+- Alertes si quantite_disponible <= stock_alerte
+
+Niveaux (vue vue_stock_complet) :
+- CRITIQUE : quantite_disponible <= stock_securite
+- ALERTE : quantite_disponible <= stock_alerte
+- NORMAL : quantite_disponible > stock_alerte
+
+7. INVENTAIRE
+
+Processus inventaire :
+- InventaireController::create, store
+- InventaireService::lancerInventaireManuel
+- Création inventaire (statut = 'EN_COURS')
+- Sauvegarde état stock avant inventaire
+
+Saisie inventaire :
+- InventaireController::saisie
+- InventaireService::saisirArticleInventaire
+- Saisie par produit : quantite_theorique, quantite_comptee
+- Calcul automatique de l'écart : quantite_comptee - quantite_theorique
+- Enregistrement dans inventaire_articles
+
+Validation inventaire :
+- InventaireController::valider
+- Mise à jour stock selon écarts
+- Enregistrement mouvements de stock
+- Changement statut inventaire
+
+Annulation inventaire :
+- InventaireController::annuler
+- Restauration état initial
+- Changement statut inventaire
+
+8. RÉAPPROVISIONNEMENT
+
+Commandes automatiques :
+- CommandeAutomatiqueService
+- Détection des produits sous seuil
+- Génération de commandes fournisseurs
+- Non clairement utilisé dans l'interface
+
+Commandes manuelles :
+- ChargeCommandeController::orderForm
+- Création de commandes fournisseurs
+- Sélection des produits et quantités
+
+9. RÈGLES DE MISE À JOUR
+
+Règle 1 : Transaction ACID
+- Toute mise à jour du stock est transactionnelle
+- Rollback en cas d'erreur
+
+Règle 2 : Contrôle de disponibilité
+- Contrôle systématique avant sortie
+- Stock insuffisant = erreur bloquante
+
+Règle 3 : Enregistrement mouvement
+- Chaque mouvement est enregistré
+- Traçabilité complète (avant/après)
+
+Règle 4 : Valeur stock
+- Mise à jour automatique de valeur_stock
+- Calcul : quantite_disponible × prix_achat moyen
+
+Règle 5 : Sans lots
+- Le système fonctionne sans lots (StockService.php ligne 97-103)
+- lot_id ignoré
+- Gestion au niveau produit uniquement
+
+10. TABLES DE BASE DE DONNÉES CONCERNÉES
+
+- stock : stock par produit
+- mouvements_stock : mouvements de stock
+- stock_entries : entrées de stock détaillées
+- lots : lots de produits (présent mais non utilisé)
+- inventaires : inventaires
+- inventaire_articles : articles d'inventaire
+- produits : informations produits
+- categories : catégories
+- fournisseurs : fournisseurs
+
+11. LIENS AVEC LES AUTRES MODULES
+
+Module Ventes :
+- Déduction automatique du stock
+- Contrôle de disponibilité
+
+Module Commandes :
+- Mise à jour du stock à réception
+- Traçabilité des entrées
+
+Module Inventaire :
+- Ajustement du stock
+- Détection des écarts
+
+Module Péremptions :
+- Gestion des produits périmés
+- Mise à jour du stock
+
+12. CONTRÔLES ET VALIDATIONS EFFECTUÉS
+
+Contrôle 1 : Disponibilité
+- Contrôle avant chaque sortie
+- Stock insuffisant = erreur bloquante
+
+Contrôle 2 : Quantité positive
+- Contrainte CHECK : quantite > 0
+- Validation à la saisie
+
+Contrôle 3 : Transaction ACID
+- Rollback en cas d'erreur
+- Garantie de cohérence
+
+13. STATUTS UTILISÉS
+
+type_mouvement :
+- ENTREE
+- SORTIE
+- TRANSFERT
+- AJUSTEMENT
+- PERTE
+
+reference_type :
+- VENTE
+- COMMAND
+- INVENTAIRE
+- AJUSTEMENT
+- TRANSFERT
+
+statut_inventaire :
+- EN_COURS
+- VALIDE
+- ANNULE
+
+14. ÉVENTUELLES LIMITES OU FONCTIONNALITÉS INCOMPLÈTES
+
+Limite 1 : Pas de gestion par lots
+- Le système fonctionne sans lots
+- Pas de traçabilité par lot
+- Pas de FIFO
+
+Limite 2 : Transferts non implémentés
+- type_mouvement = 'TRANSFERT' existe
+- Pas de logique de transfert
+
+Limite 3 : Réapprovisionnement automatique
+- CommandeAutomatiqueService existe
+- Non clairement intégré dans l'interface
+
+================================================================================
+E. GESTION DES FOURNISSEURS ET COMMANDES
+================================================================================
+
+1. ACTEURS CONCERNÉS
+- CHARGE DE COMMANDE : Crée et gère les commandes
+- FOURNISSEUR : Livre les produits
+- ADMINISTRATEUR : Valide les commandes
+- MAGASINIER : Réceptionne les commandes
+
+2. CRÉATION D'UNE COMMANDE
+
+Processus :
+- ChargeCommandeController::orderForm
+- ChargeCommandeService::createSupplierOrder
+- Sélection du fournisseur
+- Sélection des produits et quantités
+- Saisie des prix d'achat
+- Saisie des remises par ligne
+- Saisie de la remise globale
+- Saisie de la TVA globale
+- Date de livraison prévue
+
+Données saisies :
+- fournisseur_id (obligatoire)
+- reference_commande (optionnel)
+- date_commande (défaut : aujourd'hui)
+- date_livraison_prevue (optionnel)
+- items : [{produit_id, quantite, prix_achat, remise, tva}]
+- remise_globale
+- tva_globale
+- observations
+
+Données calculées automatiquement :
+- numero_commande (généré : CC + timestamp)
+- montant_ht par ligne : quantite × prix_achat
+- montant_remise par ligne : montant_ht × remise/100
+- montant_apres_remise par ligne : montant_ht - montant_remise
+- montant_tva par ligne : montant_apres_remise × tva/100
+- montant_ttc par ligne : montant_apres_remise + montant_tva
+- montant_ht total : Σ(montant_ht lignes)
+- montant_ttc total : calculé avec remise et TVA globales
+- statut : 'BROUILLON' (par défaut)
+
+3. LIGNES DE COMMANDE
+
+Table supplier_order_items :
+- supplier_order_id
+- produit_id
+- quantite_commandee
+- quantite_recue (défaut : 0)
+- prix_achat
+- montant_total
+- remise
+- tva
+- montant_ht
+- montant_ttc
+
+Calculs par ligne :
+- montant_ht = quantite_commandee × prix_achat
+- montant_remise = montant_ht × remise/100
+- montant_apres_remise = montant_ht - montant_remise
+- montant_tva = montant_apres_remise × tva/100
+- montant_ttc = montant_apres_remise + montant_tva
+
+4. RÉCEPTION
+
+Processus :
+- ChargeCommandeController::receptionForm
+- ChargeCommandeService::receiveOrder
+- Sélection de la commande
+- Saisie des quantités reçues par ligne
+- Saisie du numéro de facture
+- Saisie du montant de la facture
+- Date de réception
+- Observations
+
+Données saisies :
+- supplier_order_id (obligatoire)
+- items : [{supplier_order_item_id, quantite_recue}]
+- date_reception (défaut : aujourd'hui)
+- numero_facture
+- date_facture
+- reference_facture
+- montant_facture
+- observations
+
+Contrôles :
+- Quantité reçue <= reste à livrer
+- Agrégation des quantités (évite contournement)
+- Transaction ACID
+
+Données calculées automatiquement :
+- numero_reception (généré : BR + timestamp)
+- ecart par ligne : quantite_attendue - quantite_recue
+- ecart_detecte : true si écart > 0
+- statut : 'RECU_COMPLET' ou 'PARTIELLEMENT_RECU'
+
+5. RÉCEPTION PARTIELLE OU COMPLÈTE
+
+Réception partielle :
+- quantite_recue < quantite_attendue
+- statut = 'PARTIELLEMENT_RECU'
+- quantite_recue mise à jour dans supplier_order_items
+- Commande reste en cours
+
+Réception complète :
+- quantite_recue = quantite_attendue pour toutes les lignes
+- statut = 'RECU_COMPLET'
+- Commande marquée 'LIVREE'
+
+Écarts :
+- Calcul automatique de l'écart
+- ecart = quantite_attendue - quantite_recue
+- ecart_detecte = true si écart > 0
+- Enregistré dans reception_items
+
+6. MISE À JOUR DU STOCK APRÈS RÉCEPTION
+
+Processus automatique :
+- ChargeCommandeService::addStock
+- Pour chaque ligne reçue :
+  - Mise à jour stock.quantite_disponible += quantite_recue
+  - Mise à jour stock.quantite_theorique += quantite_recue
+  - Mise à jour stock.valeur_stock += (quantite_recue × prix_achat)
+  - Mise à jour stock.dernier_mouvement = NOW()
+- Enregistrement mouvement de stock (type_mouvement = 'ENTREE')
+- Enregistrement stock_entries (traçabilité)
+- Transaction ACID
+
+7. STATUTS
+
+supplier_orders.statut :
+- BROUILLON : Commande en brouillon
+- EN_ATTENTE : Commande envoyée, en attente de livraison
+- VALIDEE : Commande validée
+- EN_COURS : Commande en cours de livraison
+- LIVREE : Commande livrée
+- ANNULEE : Commande annulée
+- RECEPTION_PARTIELLE : Réception partielle
+- RECEPTION_COMPLETE : Réception complète
+
+receptions.statut :
+- EN_ATTENTE : Réception en attente
+- RECU_COMPLET : Réception complète
+- PARTIELLEMENT_RECU : Réception partielle
+- ANNULEE : Réception annulée
+
+8. FOURNISSEURS
+
+Informations enregistrées :
+- code (généré automatiquement)
+- nom (obligatoire)
+- adresse
+- telephone
+- email
+- registre_commerce
+- compte_bancaire
+- delai_livraison (défaut : 7 jours)
+- is_actif
+- created_at
+- updated_at
+- deleted_at (soft delete)
+
+9. RÈGLES MÉTIER RÉELLEMENT IMPLÉMENTÉES
+
+Règle 1 : Numérotation automatique
+- numero_commande unique (CC + timestamp)
+- numero_reception unique (BR + timestamp)
+
+Règle 2 : Contrôle des quantités
+- Quantité reçue <= reste à livrer
+- Agrégation pour éviter contournement
+- FOR UPDATE sur lignes
+
+Règle 3 : Transaction ACID
+- Toute réception est transactionnelle
+- Rollback en cas d'erreur
+
+Règle 4 : Calcul automatique
+- Montants calculés automatiquement
+- Écarts calculés automatiquement
+
+Règle 5 : Modification interdite
+- Modification interdite après validation
+- Seuls BROUILLON et EN_ATTENTE modifiables
+
+10. TABLES DE BASE DE DONNÉES CONCERNÉES
+
+- fournisseurs : informations fournisseurs
+- supplier_orders : commandes fournisseurs
+- supplier_order_items : lignes de commandes
+- receptions : réceptions
+- reception_items : détails des réceptions
+- stock : stock des produits
+- mouvements_stock : mouvements de stock
+- stock_entries : entrées de stock détaillées
+
+11. LIENS AVEC LES AUTRES MODULES
+
+Module Stock :
+- Mise à jour automatique du stock à réception
+- Enregistrement des mouvements de stock
+
+Module Comptabilité :
+- ecriture_id présent dans receptions
+- ❌ Intégration comptable automatique NON implémentée
+
+Module Produits :
+- Référence aux produits
+- Mise à jour des prix d'achat
+
+12. CONTRÔLES ET VALIDATIONS EFFECTUÉS
+
+Contrôle 1 : Données obligatoires
+- fournisseur_id obligatoire
+- Au moins une ligne obligatoire
+
+Contrôle 2 : Quantités
+- Quantité positive
+- Quantité reçue <= reste à livrer
+
+Contrôle 3 : Prix
+- Prix positif
+
+Contrôle 4 : Agrégation
+- Agrégation des quantités reçues
+- Évite contournement
+
+13. ÉVENTUELLES LIMITES OU FONCTIONNALITÉS INCOMPLÈTES
+
+Limite 1 : Intégration comptable
+- ecriture_id présent dans receptions
+- ❌ Pas de génération automatique d'écriture comptable
+
+Limite 2 : Validation fournisseur
+- Pas de validation de la solvabilité
+
+Limite 3 : Historique prix fournisseur
+- Pas d'historique des prix par fournisseur
+
+================================================================================
+F. GESTION DES PÉREMPTIONS
+================================================================================
+
+1. DONNÉES UTILISÉES POUR SUIVRE LES PÉREMPTIONS
+
+Table lots :
+- produit_id
+- numero_lot
+- date_fabrication
+- date_peremption
+- quantite_initiale
+- quantite_restante
+- prix_achat_unitaire
+- fournisseur_id
+- commande_id
+- is_actif
+
+Table produits :
+- date_peremption_default
+
+2. ALERTES
+
+Niveaux de péremption (PeremptionService::analyserPeremptions) :
+- PERIME : jours_restants <= 0
+- URGENT : jours_restants <= 30
+- ALERTE : jours_restants <= 60
+- ATTENTION : jours_restants <= 180
+- NORMAL : jours_restants > 180
+
+Classe alerte :
+- PERIME : danger
+- URGENT : danger
+- ALERTE : warning
+- ATTENTION : info
+- NORMAL : success
+
+Calculs :
+- jours_restants = DATEDIFF(date_peremption, CURDATE())
+- niveau_peremption calculé selon jours_restants
+- valeur_perimee = Σ(quantite_restante × prix_achat_unitaire)
+- valeur_en_risque = Σ(quantite_restante × prix_achat_unitaire) pour URGENT et ALERTE
+
+3. IDENTIFICATION DES PRODUITS PROCHES DE LA PÉREMPTION
+
+Processus :
+- PeremptionService::analyserPeremptions
+- Horizon configurable (30, 60, 180 jours)
+- Filtrage par horizon
+- Tri par date_peremption ASC
+- Regroupement par niveau
+
+Fonctionnalités :
+- StockController::peremptions
+- Affichage des produits proches de la péremption
+- Filtrage par niveau
+- Export CSV
+
+4. GESTION DES PRODUITS EXPIRÉS
+
+Processus :
+- PeremptionService::traiterPerimes
+- Sélection des produits périmés
+- Mise à jour du stock à 0
+- Enregistrement mouvement de stock (type_mouvement = 'PERTE')
+- Calcul de la valeur perdue
+- Log de l'action
+
+Données calculées :
+- valeur_perdue = quantite_disponible × prix_achat
+- valeur_totale_perdue = Σ(valeur_perdue)
+
+5. RÈGLES EMPÊCHANT OU PERMETTANT LEUR VENTE
+
+❌ Règle de blocage à la vente :
+- PAS de contrôle de péremption lors de la vente
+- Les produits périmés peuvent être vendus
+- Aucun blocage automatique détecté dans VenteService
+
+⚠️ Règle de notification :
+- Alertes affichées dans le dashboard
+- StockController::peremptions pour consultation
+- Pas de blocage automatique
+
+6. TABLES DE BASE DE DONNÉES CONCERNÉES
+
+- lots : lots de produits
+- produits : informations produits
+- stock : stock des produits
+- mouvements_stock : mouvements de stock
+
+7. LIENS AVEC LES AUTRES MODULES
+
+Module Stock :
+- Mise à jour du stock lors du traitement
+- Enregistrement des mouvements
+
+Module Fournisseurs :
+- fournisseur_id dans lots
+- Traçabilité fournisseur
+
+8. CONTRÔLES ET VALIDATIONS EFFECTUÉS
+
+Contrôle 1 : Date de péremption
+- date_peremption obligatoire dans lots
+- Validation de la date
+
+Contrôle 2 : Quantité positive
+- quantite_restante >= 0 (CHECK constraint)
+
+9. STATUTS UTILISÉS
+
+is_actif (dans lots) :
+- true : Lot actif
+- false : Lot inactif
+
+niveau_peremption :
+- PERIME
+- URGENT
+- ALERTE
+- ATTENTION
+- NORMAL
+
+10. ÉVENTUELLES LIMITES OU FONCTIONNALITÉS INCOMPLÈTES
+
+Limite 1 : Pas de blocage à la vente
+- Les produits périmés peuvent être vendus
+- Aucun contrôle automatique détecté
+
+Limite 2 : Système sans lots
+- Le système fonctionne sans lots (StockService.php ligne 97-103)
+- PeremptionService utilise lots mais VenteService ne l'utilise pas
+
+Limite 3 : Pas d'alertes automatiques
+- Alertes consultables uniquement
+- Pas de notification automatique
+
+================================================================================
+G. GESTION DE LA CAISSE
+================================================================================
+
+1. OUVERTURE DE SESSION
+
+Processus :
+- CaisseController::ouverture
+- CaisseService::ouvrirSession
+- Vérification : aucune session ouverte pour ce caissier
+- Saisie du montant d'ouverture
+- Génération du numéro de session
+- Création de la session (statut = 'OUVERTE')
+- Enregistrement mouvement d'ouverture (si montant > 0)
+
+Données saisies :
+- caissier_id
+- montant_ouverture
+
+Données calculées automatiquement :
+- numero_session (généré automatiquement)
+- date_ouverture = NOW()
+- statut_session = 'OUVERTE'
+
+Contrôles :
+- Une seule session ouverte par caissier
+- Montant d'ouverture >= 0
+- Transaction ACID
+
+2. ENCAISSEMENTS
+
+Types d'encaissements :
+- VENTE : Encaissement sur vente
+- APPROVISIONNEMENT : Approvisionnement de caisse
+- ENCAISSEMENT_CLIENT : Règlement client
+- REGLEMENT_CREANCE : Règlement de créance
+- ACOMPTE_CLIENT : Acompte client
+- DEPOT_BANCAIRE : Dépôt bancaire
+
+Processus :
+- CaisseService::enregistrerMouvement
+- Saisie : caisse_session_id, type_mouvement, montant, moyen_paiement, reference, description
+- Calcul automatique du solde avant
+- Calcul automatique du solde après
+- Enregistrement du mouvement
+- Mise à jour montant_ventes si type_mouvement = 'VENTE'
+- Génération écriture comptable (sauf VENTE et ANNULATION_VENTE)
+
+Données saisies :
+- caisse_session_id
+- type_mouvement
+- montant
+- moyen_paiement (ESPECE/CARTE/CHEQUE/MOBILE_MONEY)
+- reference
+- description
+- utilisateur_id
+
+Données calculées automatiquement :
+- solde_avant (calculé depuis mouvements existants)
+- solde_apres = solde_avant + montant (entrée) ou solde_avant - montant (sortie)
+- date_mouvement = NOW()
+
+3. MODES DE PAIEMENT
+
+moyen_paiement (dans mouvements_caisse) :
+- ESPECE
+- CARTE
+- CHEQUE
+- MOBILE_MONEY
+
+type_paiement (dans ventes) :
+- ESPECE
+- CARTE
+- CHEQUE
+- CREDIT
+- MOBILE_MONEY
+
+4. MOUVEMENTS DE CAISSE
+
+Table mouvements_caisse :
+- id, caisse_session_id
+- type_mouvement
+- montant
+- solde_avant
+- solde_apres
+- moyen_paiement
+- reference
+- description
+- utilisateur_id
+- vente_id (optionnel)
+- ecriture_id (optionnel)
+- date_mouvement
+- supprime (0/1)
+
+Types de mouvements :
+- Entrées : VENTE, APPROVISIONNEMENT, ENCAISSEMENT_CLIENT, REGLEMENT_CREANCE, ACOMPTE_CLIENT, DEPOT_BANCAIRE
+- Sorties : REMBOURSEMENT, DECAISSEMENT, RETRAIT, ANNULATION_VENTE, RETRAIT_BANCAIRE
+
+5. CLÔTURE
+
+Processus :
+- CaisseController::fermeture
+- CaisseService::fermerSession
+- Saisie du montant de fermeture
+- Calcul automatique du montant théorique
+- Calcul automatique de l'écart
+- Mise à jour de la session (statut = 'FERMEE')
+- Enregistrement mouvement de fermeture (si retrait)
+- Log de l'action
+
+Données saisies :
+- caisse_session_id
+- montant_fermeture
+- utilisateur_id
+
+Données calculées automatiquement :
+- montant_theorique = Σ(encaissements) - Σ(décaissements)
+- ecart = montant_fermeture - montant_theorique
+- date_fermeture = NOW()
+- statut_session = 'FERMEE'
+
+Contrôles :
+- Session doit être 'OUVERTE'
+- Transaction ACID
+
+6. ANNULATIONS
+
+Types d'annulations :
+- ANNULATION_VENTE : Annulation d'une vente
+- REMBOURSEMENT : Remboursement
+
+Processus annulation vente :
+- VenteService::annulerVente
+- Restauration du stock
+- Annulation du mouvement de caisse (supprime = 1)
+- Changement statut vente = 'ANNULEE'
+- ❌ Contre-passation comptable non confirmée
+
+7. HISTORIQUE
+
+Processus :
+- JournalCaisseController::index
+- CaisseService::getHistoriqueSessions
+- Affichage des sessions passées
+- Affichage des mouvements par session
+- Filtres : date, utilisateur, session, type_mouvement, reference, montant
+
+Fonctionnalités :
+- ✅ Consultation journal
+- ✅ Détail mouvement
+- ✅ Export Excel
+- ✅ Export PDF
+- ✅ Recherche
+
+8. RÈGLES MÉTIER RÉELLEMENT IMPLÉMENTÉES
+
+Règle 1 : Une session par caissier
+- Contrôle systématique à l'ouverture
+- Session ouverte existante = erreur
+
+Règle 2 : Montant positif
+- Montant d'ouverture >= 0
+- Montant de fermeture >= 0
+- Montant mouvement >= 0
+
+Règle 3 : Solde calculé automatiquement
+- Solde avant calculé depuis mouvements existants
+- Solde après calculé selon type d'entrée/sortie
+
+Règle 4 : Écart calculé automatiquement
+- Écart = montant_fermeture - montant_theorique
+- Enregistré dans la session
+
+Règle 5 : Transaction ACID
+- Toute opération est transactionnelle
+- Rollback en cas d'erreur
+
+Règle 6 : Intégration comptable
+- Génération automatique d'écriture comptable
+- Sauf pour VENTE et ANNULATION_VENTE (gérés par VenteService)
+
+9. TABLES DE BASE DE DONNÉES CONCERNÉES
+
+- caisse_sessions : sessions de caisse
+- mouvements_caisse : mouvements de caisse
+- utilisateurs : caissiers
+- ventes : ventes (liées aux mouvements)
+
+10. LIENS AVEC LES AUTRES MODULES
+
+Module Ventes :
+- Encaissement automatique sur vente
+- Lien via vente_id dans mouvements_caisse
+- Mise à jour montant_ventes de la session
+
+Module Comptabilité :
+- Génération automatique d'écriture comptable
+- Lien via ecriture_id dans mouvements_caisse
+
+Module Utilisateurs :
+- caissier_id dans caisse_sessions
+- utilisateur_id dans mouvements_caisse
+
+11. CONTRÔLES ET VALIDATIONS EFFECTUÉS
+
+Contrôle 1 : Session ouverte
+- Une seule session par caissier
+- Session ouverte existante = erreur
+
+Contrôle 2 : Montant positif
+- Montant >= 0
+- Validation à la saisie
+
+Contrôle 3 : Session fermée
+- Modification interdite si session fermée
+
+Contrôle 4 : Transaction ACID
+- Rollback en cas d'erreur
+
+12. STATUTS UTILISÉS
+
+statut_session (dans caisse_sessions) :
+- OUVERTE
+- FERMEE
+- CONTROLEE
+
+type_mouvement (dans mouvements_caisse) :
+- VENTE
+- REMBOURSEMENT
+- APPROVISIONNEMENT
+- RETRAIT
+- AJUSTEMENT
+- OUVERTURE_CAISSE
+- FERMETURE_CAISSE
+- ENCAISSEMENT_CLIENT
+- REGLEMENT_CREANCE
+- ACOMPTE_CLIENT
+- DEPOT_BANCAIRE
+- ANNULATION_VENTE
+- RETRAIT_BANCAIRE
+
+13. ÉVENTUELLES LIMITES OU FONCTIONNALITÉS INCOMPLÈTES
+
+Limite 1 : Contre-passation comptable
+- Annulation de vente restaure le stock
+- Annulation du mouvement de caisse (supprime = 1)
+- ❌ Contre-passation comptable non confirmée
+
+Limite 2 : Écart non bloquant
+- Écart calculé mais ne bloque pas la fermeture
+- Pas de validation obligatoire
+
+================================================================================
+H. INTERACTIONS ENTRE LES PROCESSUS
+================================================================================
+
+INTERACTION LORS DE L'ENREGISTREMENT D'UNE VENTE
+
+Processus complet (VenteService::creerVente) :
+
+1. VENTE → STOCK
+- Contrôle de disponibilité (StockService::verifierDisponibilite)
+- Déduction automatique du stock (StockService::deduireStock)
+- Mise à jour : quantite_disponible -= quantite
+- Mise à jour : quantite_theorique -= quantite
+- Mise à jour : valeur_stock -= (quantite × prix_achat)
+- Enregistrement mouvement de stock (type_mouvement = 'SORTIE')
+- Transaction ACID
+
+2. VENTE → CAISSE
+- Si paiement immédiat (montant_paye > 0) :
+  - Enregistrement mouvement de caisse (CaisseService::enregistrerMouvement)
+  - type_mouvement = 'VENTE'
+  - Mise à jour : montant_ventes de la session
+  - Calcul automatique du solde avant/après
+- Si vente à crédit :
+  - Pas de mouvement de caisse
+  - Enregistrement créance client
+
+3. VENTE → FACTURATION
+- Numérotation automatique (numero_facture, numero_ticket)
+- Calcul automatique des montants (HT, TVA, TTC)
+- Enregistrement des détails de paiement (paiement_details)
+- Impression du ticket/facture
+
+4. VENTE → COMPTABILITÉ
+- ✅ Génération automatique de l'écriture comptable (ComptabiliteService::genererEcritureVente)
+- Débit : compte client (411) ou caisse (571)
+- Crédit : compte ventes (701) et TVA collectée (44571)
+- Lien via ecriture_id dans ventes
+- Transaction ACID
+
+5. VENTE → CLIENT
+- Si vente à crédit :
+  - Contrôle du plafond de crédit
+  - Mise à jour solde_credit += montant
+  - Enregistrement créance (ventes_credit)
+  - FOR UPDATE sur client pour éviter concurrence
+
+6. VENTE → ORDONNANCE
+- Si produits nécessitent ordonnance :
+  - Validation des champs obligatoires
+  - Création ou lien avec ordonnance existante
+  - Enregistrement des produits de l'ordonnance
+
+INTERACTION LORS DE LA RÉCEPTION D'UNE COMMANDE
+
+Processus complet (ChargeCommandeService::receiveOrder) :
+
+1. RÉCEPTION → STOCK
+- Mise à jour automatique du stock (addStock)
+- Mise à jour : quantite_disponible += quantite_recue
+- Mise à jour : quantite_theorique += quantite_recue
+- Mise à jour : valeur_stock += (quantite_recue × prix_achat)
+- Enregistrement mouvement de stock (type_mouvement = 'ENTREE')
+- Enregistrement stock_entries (traçabilité)
+- Transaction ACID
+
+2. RÉCEPTION → COMPTABILITÉ
+- ❌ ecriture_id présent dans receptions
+- ❌ PAS de génération automatique d'écriture comptable
+- Intégration comptable NON implémentée
+
+INTERACTION LORS DE LA CLÔTURE DE SESSION CAISSE
+
+Processus complet (CaisseService::fermerSession) :
+
+1. CLÔTURE → COMPTABILITÉ
+- Génération automatique d'écriture comptable (CaisseService::genererEcritureComptableMouvement)
+- Pour mouvement de fermeture
+- Lien via ecriture_id dans mouvements_caisse
+
+INTERACTION LORS DU TRAITEMENT DES PÉRIMPTIONS
+
+Processus complet (PeremptionService::traiterPerimes) :
+
+1. PÉREMPTION → STOCK
+- Mise à jour du stock à 0
+- Enregistrement mouvement de stock (type_mouvement = 'PERTE')
+- Calcul de la valeur perdue
+- ❌ PAS d'écriture comptable automatique
+
+INTERACTION LORS DE L'INVENTAIRE
+
+Processus complet (InventaireService) :
+
+1. INVENTAIRE → STOCK
+- Mise à jour du stock selon écarts
+- Enregistrement mouvements de stock (type_mouvement = 'AJUSTEMENT')
+- ❌ PAS d'écriture comptable automatique
+
+================================================================================
+TABLEAU SYNTHÉTIQUE DES PROCESSUS
+================================================================================
+
+| Processus | Fonctionnalités réellement présentes | Acteurs | Données principales | Modules liés | État |
+|-----------|--------------------------------------|---------|-------------------|--------------|------|
+| Gestion des ventes | Création vente, sélection produits, calcul montants, remises, modes paiement (5), paiement comptant/crédit, client, mise à jour stock, caisse, facturation, annulation, tickets suspendus, ordonnances | VENDEUR, CLIENT, ADMIN, COMPTABLE | numero_facture, numero_ticket, client_id, articles, montant_total, montant_ht, montant_tva, montant_ttc, montant_net, montant_paye, montant_restant, type_paiement, statut_vente | Stock, Caisse, Comptabilité, Clients, Ordonnances | COMPLET |
+| Gestion des clients | Création/ modification client, 3 types (ORDINAIRE, ASSURE, ENTREPRISE), plafond crédit, solde crédit, suivi créances, règlements, export | ADMIN, VENDEUR, COMPTABLE | code, matricule, nom, prenom, telephone, type_client, numero_assurance, compagnie_assurance, plafond_credit, solde_credit | Ventes, Finance, Comptabilité | COMPLET |
+| Gestion des produits | Informations produit, prix (achat/vente/assure), catégories, DCI, forme pharmaceutique, classe pharmaceutique, rayon, seuils (sécurité/alerte), historique prix, recherche, export | ADMIN, CHARGE_COMMANDE, VENDEUR | code_cip, code_barre, nom, description, categorie_id, dci, forme_pharmaceutique, classe_pharmaceutique, rayon, prix_achat, prix_vente, prix_vente_assure, stock_securite, stock_alerte, requires_prescription | Stock, Ventes, Fournisseurs, Catégories | COMPLET |
+| Gestion des stocks | Entrées (réception, directe), sorties (vente, manuelle), mouvements, stock réel/théorique, seuils d'alerte, inventaire (manuel/automatique), ajustements, alertes, export | ADMIN, CHARGE_COMMANDE, MAGASINIER | quantite_disponible, quantite_theorique, quantite_reservee, valeur_stock, type_mouvement, quantite_avant, quantite_apres | Ventes, Commandes, Inventaire, Péremptions | COMPLET (sans lots) |
+| Gestion fournisseurs et commandes | Création commande, lignes commande, réception (partielle/complète), mise à jour stock, écarts, statuts, annulation, export PDF/Excel | CHARGE_COMMANDE, ADMIN, MAGASINIER | numero_commande, fournisseur_id, items, quantite_commandee, quantite_recue, prix_achat, remise, tva, montant_ht, montant_ttc, statut | Stock, Produits, Comptabilité (partiel) | COMPLET (sauf comptabilité) |
+| Gestion des péremptions | Analyse péremptions, alertes (5 niveaux), identification produits proches péremption, traitement produits expirés, calcul valeur perdue, export | ADMIN, CHARGE_COMMANDE, MAGASINIER | date_peremption, numero_lot, quantite_restante, jours_restants, niveau_peremption, valeur_perdue | Stock, Lots, Fournisseurs | PARTIEL (pas de blocage vente) |
+| Gestion de la caisse | Ouverture session, encaissements (6 types), modes paiement (4), mouvements, clôture, calcul écart, annulations, historique, journal, export | VENDEUR, ADMIN, COMPTABLE | numero_session, caissier_id, montant_ouverture, montant_fermeture, montant_theorique, ecart, type_mouvement, solde_avant, solde_apres | Ventes, Comptabilité | COMPLET |
+| Facturation | Génération automatique facture, numérotation, calcul montants (HT/TVA/TTC), remises, détails paiement, impression, historique | VENDEUR, ADMIN, CLIENT | numero_facture, numero_ticket, montant_total, montant_ht, montant_tva, montant_ttc, montant_net, montant_paye, montant_restant, statut_vente, statut_paiement | Ventes, Clients, Caisse | INTÉGRÉE aux ventes |
+| Comptabilité | Plan comptable SYSCOA (293 comptes), journaux (5), écritures, grand livre, balance, bilan, compte résultat, TVA (2 taux), intégration ventes (97%), intégration caisse (31%) | COMPTABLE, ADMIN | numero_compte, nom_compte, classe, type_compte, solde_initial, solde_actuel, debit, credit, reference_type, reference_id | Ventes, Caisse, Clients, Fournisseurs | PARTIEL (validation absente) |
+
+================================================================================
+FONCTIONNALITÉS CONFIRMÉES DANS LE CODE
+================================================================================
+
+✅ GESTION DES VENTES
+- Création de vente avec transaction ACID
+- Sélection de produits avec recherche (nom, CIP, code-barres, DCI)
+- Contrôle de disponibilité du stock
+- Calcul automatique des montants (HT, TVA, TTC, net)
+- Remises par ligne et globale avec validation par rôle
+- 5 modes de paiement (ESPECE, CARTE, CHEQUE, CREDIT, MOBILE_MONEY)
+- Paiement comptant et crédit
+- Gestion des tickets suspendus (sans impact stock/caisse/comptabilité)
+- Reprise de tickets suspendus
+- Validation des ordonnances (produits nécessitant ordonnance)
+- Création/lien avec ordonnances existantes
+- Mise à jour automatique du stock
+- Enregistrement automatique du mouvement de caisse
+- Génération automatique de l'écriture comptable
+- Contrôle du plafond de crédit client
+- Mise à jour automatique du solde crédit
+- Numérotation automatique (facture, ticket)
+- Annulation de vente avec restauration du stock
+- Historique des ventes
+- Export de données
+
+✅ GESTION DES CLIENTS
+- 3 types de clients (ORDINAIRE, ASSURE, ENTREPRISE)
+- Création/modification de clients
+- Code et matricule uniques (générés automatiquement)
+- Âge calculé automatiquement
+- Plafond de crédit configurable
+- Solde crédit suivi en temps réel
+- Informations spécifiques par type (assurance, IFU, RCCM)
+- Suivi des créances
+- Saisie de règlements
+- Brouillons de règlements
+- Reçus de règlement
+- Relevés de règlements
+- Export de clients
+- Désactivation de clients
+
+✅ GESTION DES PRODUITS
+- Informations complètes (CIP, code-barres, nom, description)
+- Classification (catégories, DCI, forme pharmaceutique, classe pharmaceutique, rayon)
+- Prix (achat, vente, vente assuré)
+- Historique des prix
+- Coefficient de marge (1.48)
+- Seuils de stock (sécurité, alerte)
+- Ordonnance obligatoire (flag)
+- Type de délivrance
+- Recherche multi-critères
+- Export de produits
+- Activation/désactivation
+
+✅ GESTION DES STOCKS
+- Stock réel et théorique
+- Entrées (réception commande, entrée directe)
+- Sorties (vente, sortie manuelle)
+- Mouvements de stock (traçabilité complète)
+- Ajustements de stock
+- Inventaire (manuel et automatique)
+- Saisie d'inventaire par produit
+- Calcul automatique des écarts
+- Validation d'inventaire
+- Annulation d'inventaire
+- Alertes de stock (3 niveaux)
+- Export de mouvements
+- Export de péremptions
+- Valeur du stock calculée automatiquement
+- Système fonctionne sans lots
+
+✅ GESTION DES FOURNISSEURS ET COMMANDES
+- Création de fournisseurs
+- Création de commandes fournisseurs
+- Lignes de commande avec remises et TVA
+- Réception de commandes
+- Réception partielle ou complète
+- Calcul automatique des écarts
+- Mise à jour automatique du stock
+- Traçabilité des entrées (stock_entries)
+- Modification de commandes (brouillon/en attente)
+- Annulation de commandes
+- Duplication de commandes
+- Export PDF/Excel
+- Historique des commandes
+- Statuts multiples (BROUILLON, EN_ATTENTE, VALIDEE, EN_COURS, LIVREE, ANNULEE, RECEPTION_PARTIELLE, RECEPTION_COMPLETE)
+
+✅ GESTION DES PÉREMPTIONS
+- Analyse des péremptions avec horizon configurable
+- 5 niveaux d'alerte (PERIME, URGENT, ALERTE, ATTENTION, NORMAL)
+- Calcul automatique des jours restants
+- Calcul automatique de la valeur perdue
+- Calcul automatique de la valeur en risque
+- Traitement des produits périmés
+- Mise à jour du stock à 0
+- Enregistrement des pertes
+- Export des péremptions
+- Alertes dans dashboard
+
+✅ GESTION DE LA CAISSE
+- Ouverture de session de caisse
+- Contrôle (une session par caissier)
+- Encaissements (6 types)
+- Modes de paiement (4)
+- Calcul automatique du solde
+- Clôture de session
+- Calcul automatique de l'écart
+- Mouvements de caisse (traçabilité)
+- Annulations
+- Historique des sessions
+- Journal de caisse
+- Export Excel/PDF
+- Recherche dans le journal
+- Rapports de caisse
+
+✅ FACTURATION
+- Génération automatique de facture
+- Numérotation automatique
+- Calcul automatique des montants
+- Détails de paiement
+- Historique des factures
+- Impression de tickets/factures
+
+✅ COMPTABILITÉ SYSCOA/OHADA
+- Plan comptable (293 comptes)
+- Classes SYSCOA 1-8
+- Journaux (5 : AC, VT, CA, BQ, OD)
+- Écritures comptables
+- Grand livre
+- Balance
+- Bilan
+- Compte de résultat
+- TVA (2 taux : 0%, 18%)
+- Intégration ventes → comptabilité (97%)
+- Intégration caisse → comptabilité (31%)
+- Suivi des tiers
+- Export de données
+
+✅ UTILISATEURS ET SÉCURITÉ
+- 5 rôles (ADMIN, ASSISTANT, CHARGE_COMMANDE, VENDEUR, COMPTABLE)
+- RBAC complet
+- Permissions granulaires
+- Authentification
+- Expiration de session (3600s)
+- Blocage après échecs
+- Audit et traçabilité complets
+- Logs d'audit
+- Historique des actions
+
+✅ TABLEAUX DE BORD ET STATISTIQUES
+- 6 dashboards (admin, vente, caisse, stock, commande, assistant)
+- Indicateurs en temps réel
+- Graphiques et visualisations
+- Rapports
+- Monitoring système
+- Performance tracking
+
+================================================================================
+FONCTIONNALITÉS NON CONFIRMÉES OU INCOMPLÈTES
+================================================================================
+
+❌ VALIDATION DES ÉCRITURES COMPTABLES
+- Colonnes statut, date_validation, utilisateur_validation_id absentes
+- Pas de workflow de validation
+- Écritures directement actives
+
+❌ CONTRE-PASSATION COMPTABLE
+- Annulation de vente restaure le stock
+- Annulation du mouvement de caisse (supprime = 1)
+- Contre-passation comptable non confirmée dans le code
+
+❌ INTÉGRATION ACHATS → COMPTABILITÉ
+- ecriture_id présent dans receptions
+- PAS de génération automatique d'écriture comptable
+- Intégration 0%
+
+❌ INTÉGRATION RÈGLEMENTS → COMPTABILITÉ
+- ReglementTiersService existe
+- PAS de génération automatique d'écriture comptable
+- Intégration 0%
+
+❌ PÉRIODES COMPTABLES
+- Pas de gestion des périodes comptables
+- Pas de clôture mensuelle
+
+❌ CLASSES COMPTABLES SYSCOA STRUCTURÉES
+- Table classes_comptes absente
+- Classes comptables non structurées
+
+❌ GESTION PAR LOTS
+- Le système fonctionne sans lots (StockService.php ligne 97-103)
+- lot_id toujours null dans ventes_items
+- Pas de traçabilité par lot
+- Pas de FIFO
+
+❌ BLOCAGE VENTE PRODUITS PÉRIMÉS
+- Alertes de péremption existent
+- PAS de contrôle automatique lors de la vente
+- Les produits périmés peuvent être vendus
+
+❌ TYPE DE CLIENT BÉNÉFICIAIRE
+- PAS de type BÉNÉFICIAIRE dans l'ENUM
+- Les bénéficiaires sont gérés comme clients ordinaires ou assurés
+
+❌ TABLE DÉDIÉE PRESCRIPTEURS
+- PAS de table dédiée pour les prescripteurs
+- Les prescripteurs sont gérés via ordonnances
+
+❌ TARIFICATION PERSONNALISÉE PAR CLIENT
+- Prix unique par produit
+- PAS de grille tarifaire par client
+
+❌ TABLES DÉDIÉES FORME/CLASSE/RAYON
+- forme_pharmaceutique : champ VARCHAR
+- classe_pharmaceutique : champ VARCHAR
+- rayon : champ VARCHAR
+- Pas de tables dédiées
+
+❌ TRANSFERTS DE STOCK
+- type_mouvement = 'TRANSFERT' existe
+- PAS de logique de transfert
+
+❌ RÉAPPROVISIONNEMENT AUTOMATIQUE
+- CommandeAutomatiqueService existe
+- Non clairement intégré dans l'interface
+
+❌ 2FA (DEUX FACTEURS D'AUTHENTIFICATION)
+- PAS implémenté
+
+❌ ALERTES PAR EMAIL
+- Alertes consultables uniquement
+- PAS de notification automatique
+
+❌ MULTI-PAIEMENT
+- paiement_details existe
+- Non clairement utilisé pour multi-paiement
+- Un seul type_paiement par vente
+
+================================================================================
+FIN DU RAPPORT D'ANALYSE MÉTIER
+================================================================================

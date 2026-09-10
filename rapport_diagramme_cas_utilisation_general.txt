@@ -1,0 +1,507 @@
+================================================================================
+RAPPORT D'ANALYSE — DIAGRAMME DE CAS D'UTILISATION GÉNÉRAL
+================================================================================
+Date : 3 septembre 2026
+Projet : ERP de gestion pharmaceutique avec suivi en ligne et gestion comptable
+Objectif : Fournir la structure exacte pour créer le diagramme de cas d'utilisation général dans draw.io
+
+================================================================================
+1. ANALYSE DU CODE SOURCE
+================================================================================
+
+## 1.1 Vérification des acteurs dans le code
+
+Fichier analysé : app/Services/RoleCatalog.php
+
+**5 rôles principaux confirmés dans le code :**
+
+1. **ADMINISTRATEUR** (ID: 1)
+   - Code : ADMIN
+   - Dashboard : /admin/dashboard
+   - Description : Administrateur - Accès complet système
+
+2. **VENDEUR** (ID: 2)
+   - Code : VENDEUR
+   - Dashboard : /vente
+   - Description : Vendeur - Point de vente et caisse
+
+3. **ASSISTANT** (ID: 3)
+   - Code : ASSISTANT
+   - Dashboard : /assistant/dashboard
+   - Description : Assistant - Vente avancée et stock
+
+4. **CHARGE DE COMMANDE** (ID: 4)
+   - Code : CHARGE_COMMANDE
+   - Dashboard : /commande/dashboard
+   - Description : Chargé de commande - Stock et fournisseurs
+
+5. **COMPTABLE** (ID: 6)
+   - Code : COMPTABLE
+   - Dashboard : /comptabilite
+   - Description : Responsable de la comptabilité et du suivi comptable
+
+⚠️ **Note importante :** Le rôle COMPTABLE a l'ID 6 dans la base de données (pas 5), conformément à RoleCatalog.php
+
+## 1.2 Système de permissions RBAC
+
+Fichiers analysés :
+- app/Services/RBACService.php
+- app/Services/RolePermissionService.php
+- app/Middleware/PermissionMiddleware.php
+- app/Middleware/RoleMiddleware.php
+- app/Middleware/ChargeCommandePolicy.php
+- database/migrations/002_update_roles_permissions.sql
+- database/migrations/012_charge_commande_permissions.sql
+- database/migrations/023_add_comptable_role.sql
+- database/migrations/028_add_assistant_permissions.sql
+- database/migrations/034_admin_dashboard_rbac_permissions.sql
+
+**Architecture RBAC confirmée :**
+- Système de permissions granulaires par action
+- Tables : roles, permissions, role_permissions
+- Middleware de vérification des permissions
+- Policy spécifique pour Charge de commande (restrictions)
+- Double authentification pour Assistant (code 1: caisse, code 2: avancé)
+
+## 1.3 Contrôleurs analysés
+
+Controllers analysés pour identifier les fonctionnalités réellement implémentées :
+- AdminController.php (administration)
+- VenteController.php (ventes)
+- ClientController.php (clients)
+- StockController.php (stock)
+- CaisseController.php (caisse)
+- ComptabiliteController.php (comptabilité)
+- InventaireController.php (inventaire)
+- ChargeCommandeController.php (commandes fournisseurs)
+- FinanceController.php (finance)
+- OrdonnanceController.php (ordonnances)
+- AssistantController.php (assistant)
+- JournalCaisseController.php (journal caisse)
+
+## 1.4 Routes analysées
+
+Fichier analysé : config/routes.php (327 lignes)
+
+**Routes confirmées par module :**
+- Authentification : 3 routes
+- Ventes : 10 routes
+- Clients : 15 routes
+- Stock : 42 routes
+- Caisse : 15 routes
+- Journal caisse : 5 routes
+- Commandes : 17 routes
+- Comptabilité : 16 routes
+- Inventaire : 6 routes
+- Finance : 7 routes
+- Ordonnances : 3 routes
+- Administration : 15 routes
+- Assistant : 12 routes
+- Système : 2 routes
+- API : 4 routes
+
+================================================================================
+2. TABLEAU DES ACTEURS ET FONCTIONNALITÉS
+================================================================================
+
+| Acteur | Rôle | Fonctionnalités réellement accessibles |
+| ------ | ---- | -------------------------------------- |
+| **Administrateur** | Accès total système | Authentification, Gestion utilisateurs, Gestion rôles, Gestion produits, Gestion stock complet, Gestion caisse complète, Gestion clients, Gestion commandes fournisseurs, Comptabilité complète, Inventaire, Finance, Ordonnances, Statistiques globales, Audit logs, Configuration système |
+| **Vendeur** | Point de vente et caisse | Authentification module vente, Créer ventes, Consulter historique ventes, Annuler ventes, Suspendre/reprendre tickets, Imprimer tickets/factures, Rechercher produits, Consulter clients (lecture), Consulter stock (lecture), Gérer caisse (ouverture/fermeture), Consulter ordonnances, Traiter ordonnances |
+| **Assistant** | Vente avancée et stock | Authentification, Ventes (toutes opérations), Clients (création/modification), Stock (consultation/ajustement), Commandes fournisseurs, Caisse (toutes opérations), Inventaire, Annulation tickets, Correction ventes, Arrêt caisse, Impression factures, Statistiques, Ordonnances |
+| **Charge de commande** | Stock et fournisseurs | Authentification, Stock (consultation/ajout/ajustement), Fournisseurs (création/consultation), Commandes fournisseurs (création/modification/réception), Inventaire, Péremptions, Export stock CSV, Prix produits (modification/historique) |
+| **Comptable** | Comptabilité et suivi | Authentification, Plan comptable SYSCOA, Journaux comptables (ventes/achats/caisse), Grand livre, Balance générale, États financiers (bilan/compte résultat/trésorerie), Suivi des tiers (créances/dettes), TVA, Intégration comptable, Export données comptables |
+
+⚠️ **Restrictions identifiées :**
+- **Charge de commande** : Policy spécifique interdit l'accès aux ventes, caisse, clients, finance, administration (ChargeCommandePolicy.php)
+- **Vendeur** : Accès limité au module vente, pas de gestion stock/commandes
+- **Comptable** : Accès limité au module comptabilité, lecture clients/stock
+
+================================================================================
+3. TABLEAU DES CAS D'UTILISATION REGROUPÉS
+================================================================================
+
+| Cas d'utilisation | Description | Acteur(s) concerné(s) |
+| ----------------- | ----------- | --------------------- |
+| **S'authentifier** | Connexion au système avec identifiants | TOUS (Admin, Vendeur, Assistant, Charge commande, Comptable) |
+| **Se déconnecter** | Déconnexion du système | TOUS (Admin, Vendeur, Assistant, Charge commande, Comptable) |
+| **Gérer les ventes** | Créer, modifier, annuler, suspendre, reprendre des ventes | Vendeur, Assistant, Administrateur |
+| **Gérer les clients** | Créer, modifier, consulter, rechercher des clients | Vendeur (lecture), Assistant, Administrateur |
+| **Gérer les produits** | Créer, modifier, consulter, gérer les prix des produits | Assistant, Charge commande, Administrateur |
+| **Gérer le stock** | Consulter, ajouter, ajuster, synchroniser le stock | Vendeur (lecture), Assistant, Charge commande, Administrateur |
+| **Gérer les fournisseurs** | Créer, modifier, consulter les fournisseurs | Assistant, Charge commande, Administrateur |
+| **Gérer les commandes fournisseurs** | Créer, modifier, annuler, envoyer, recevoir des commandes | Assistant, Charge commande, Administrateur |
+| **Gérer la caisse** | Ouvrir, fermer, gérer les sessions de caisse, encaissements, décaissements | Vendeur, Assistant, Administrateur |
+| **Consulter le journal de caisse** | Voir, exporter le journal des mouvements de caisse | Assistant, Administrateur, Comptable |
+| **Gérer l'inventaire** | Créer, saisir, valider, annuler des inventaires | Assistant, Charge commande, Administrateur |
+| **Gérer les péremptions** | Consulter, traiter les produits proches de la péremption | Assistant, Charge commande, Administrateur |
+| **Gérer la comptabilité** | Plan comptable, journaux, grand livre, balance, états financiers | Comptable, Administrateur |
+| **Gérer les créances/dettes** | Suivi des créances clients et dettes fournisseurs, règlements | Comptable, Administrateur |
+| **Gérer les ordonnances** | Consulter, traiter les ordonnances médicales | Vendeur, Assistant |
+| **Gérer les utilisateurs** | Créer, modifier, supprimer des utilisateurs | Administrateur |
+| **Gérer les rôles et permissions** | Consulter, modifier les rôles et permissions | Administrateur |
+| **Consulter les statistiques** | Voir les tableaux de bord et statistiques | Assistant, Administrateur |
+| **Consulter l'audit** | Voir les logs d'audit et traçabilité | Administrateur |
+| **Configurer le système** | Configuration système, changement de date | Administrateur |
+| **Gérer les remises** | Appliquer des remises sur les ventes | Assistant, Charge commande, Administrateur |
+| **Exporter les données** | Exporter les données en CSV/Excel/PDF | Assistant, Charge commande, Administrateur, Comptable |
+
+================================================================================
+4. RELATIONS UML (INCLUDE/EXTEND)
+================================================================================
+
+## 4.1 Relations <<include>> (Inclusions)
+
+**Inclusions justifiées par l'architecture du code :**
+
+1. **Gérer les ventes** <<include>> **S'authentifier**
+   - Justification : Toute vente nécessite une authentification préalable (VenteController::isVenteUserLoggedIn())
+
+2. **Gérer la caisse** <<include>> **S'authentifier**
+   - Justification : Toute opération de caisse nécessite une authentification préalable (CaisseController::requireCaisseAccess())
+
+3. **Gérer les commandes fournisseurs** <<include>> **Gérer le stock**
+   - Justification : La réception d'une commande inclut automatiquement une entrée de stock (ChargeCommandeService::storeReception() appelle StockService)
+
+4. **Gérer l'inventaire** <<include>> **Gérer le stock**
+   - Justification : La validation d'un inventaire inclut un ajustement automatique du stock (InventaireService::validerInventaire())
+
+5. **Gérer les créances/dettes** <<include>> **Gérer la comptabilité**
+   - Justification : Le suivi des créances/dettes est une sous-fonctionnalité de la comptabilité (FinanceController utilise les services comptables)
+
+## 4.2 Relations <<extend>> (Extensions)
+
+**Extensions justifiées par le code :**
+
+1. **Suspendre un ticket** <<extend>> **Gérer les ventes**
+   - Justification : La suspension est une extension optionnelle du processus de vente (VenteController::ticketsEnAttente())
+
+2. **Reprendre un ticket suspendu** <<extend>> **Gérer les ventes**
+   - Justification : La reprise est une extension optionnelle du processus de vente (VenteController::reprendreVente())
+
+3. **Annuler une vente** <<extend>> **Gérer les ventes**
+   - Justification : L'annulation est une extension optionnelle du processus de vente (VenteController::cancelTicket())
+
+4. **Appliquer des remises** <<extend>> **Gérer les ventes**
+   - Justification : L'application de remises est une extension optionnelle du processus de vente (DiscountLimitService)
+
+5. **Gérer les péremptions** <<extend>> **Gérer le stock**
+   - Justification : La gestion des péremptions est une extension spécifique de la gestion du stock (StockController::peremptions())
+
+⚠️ **Note :** Les relations <<extend>> ne sont ajoutées que lorsqu'elles représentent une fonctionnalité optionnelle et distincte du cas d'utilisation principal.
+
+================================================================================
+5. DIAGRAMME DE CAS D'UTILISATION GÉNÉRAL — STRUCTURE DRAW.IO
+================================================================================
+
+## 5.1 Nom du système
+
+**ERP de gestion pharmaceutique avec suivi en ligne et gestion comptable**
+
+## 5.2 Position des acteurs (à gauche du diagramme)
+
+**Acteurs principaux (de haut en bas) :**
+1. Administrateur (stickman avec icône admin)
+2. Assistant (stickman avec icône assistant)
+3. Charge de commande (stickman avec icône commande)
+4. Vendeur (stickman avec icône vente)
+5. Comptable (stickman avec icône comptabilité)
+
+## 5.3 Position des cas d'utilisation (à droite du diagramme)
+
+**Cas d'utilisation regroupés par packages (de haut en bas) :**
+
+### Package Authentification
+- S'authentifier
+- Se déconnecter
+
+### Package Ventes
+- Gérer les ventes
+- Gérer les clients
+- Gérer les ordonnances
+- Gérer les remises
+
+### Package Stock
+- Gérer les produits
+- Gérer le stock
+- Gérer les fournisseurs
+- Gérer les péremptions
+
+### Package Commandes
+- Gérer les commandes fournisseurs
+
+### Package Caisse
+- Gérer la caisse
+- Consulter le journal de caisse
+
+### Package Inventaire
+- Gérer l'inventaire
+
+### Package Comptabilité
+- Gérer la comptabilité
+- Gérer les créances/dettes
+
+### Package Administration
+- Gérer les utilisateurs
+- Gérer les rôles et permissions
+- Consulter les statistiques
+- Consulter l'audit
+- Configurer le système
+
+### Package Export
+- Exporter les données
+
+## 5.4 Liens à tracer entre acteurs et cas d'utilisation
+
+### Administrateur → Tous les cas d'utilisation
+- Administrateur → S'authentifier
+- Administrateur → Se déconnecter
+- Administrateur → Gérer les ventes
+- Administrateur → Gérer les clients
+- Administrateur → Gérer les produits
+- Administrateur → Gérer le stock
+- Administrateur → Gérer les fournisseurs
+- Administrateur → Gérer les péremptions
+- Administrateur → Gérer les commandes fournisseurs
+- Administrateur → Gérer la caisse
+- Administrateur → Consulter le journal de caisse
+- Administrateur → Gérer l'inventaire
+- Administrateur → Gérer la comptabilité
+- Administrateur → Gérer les créances/dettes
+- Administrateur → Gérer les ordonnances
+- Administrateur → Gérer les utilisateurs
+- Administrateur → Gérer les rôles et permissions
+- Administrateur → Consulter les statistiques
+- Administrateur → Consulter l'audit
+- Administrateur → Configurer le système
+- Administrateur → Gérer les remises
+- Administrateur → Exporter les données
+
+### Assistant → Cas d'utilisation accessibles
+- Assistant → S'authentifier
+- Assistant → Se déconnecter
+- Assistant → Gérer les ventes
+- Assistant → Gérer les clients
+- Assistant → Gérer les produits
+- Assistant → Gérer le stock
+- Assistant → Gérer les fournisseurs
+- Assistant → Gérer les péremptions
+- Assistant → Gérer les commandes fournisseurs
+- Assistant → Gérer la caisse
+- Assistant → Consulter le journal de caisse
+- Assistant → Gérer l'inventaire
+- Assistant → Gérer les ordonnances
+- Assistant → Consulter les statistiques
+- Assistant → Gérer les remises
+- Assistant → Exporter les données
+
+### Charge de commande → Cas d'utilisation accessibles
+- Charge de commande → S'authentifier
+- Charge de commande → Se déconnecter
+- Charge de commande → Gérer les produits
+- Charge de commande → Gérer le stock
+- Charge de commande → Gérer les fournisseurs
+- Charge de commande → Gérer les péremptions
+- Charge de commande → Gérer les commandes fournisseurs
+- Charge de commande → Gérer l'inventaire
+- Charge de commande → Exporter les données
+
+### Vendeur → Cas d'utilisation accessibles
+- Vendeur → S'authentifier
+- Vendeur → Se déconnecter
+- Vendeur → Gérer les ventes
+- Vendeur → Gérer les clients (lecture seule)
+- Vendeur → Gérer le stock (lecture seule)
+- Vendeur → Gérer la caisse
+- Vendeur → Gérer les ordonnances
+
+### Comptable → Cas d'utilisation accessibles
+- Comptable → S'authentifier
+- Comptable → Se déconnecter
+- Comptable → Gérer la comptabilité
+- Comptable → Gérer les créances/dettes
+- Comptable → Consulter le journal de caisse
+- Comptable → Gérer les clients (lecture seule)
+- Comptable → Gérer le stock (lecture seule)
+- Comptable → Exporter les données
+
+## 5.5 Relations <<include>> à tracer (lignes pointillées avec flèche vers le cas inclus)
+
+- Gérer les ventes → S'authentifier
+- Gérer la caisse → S'authentifier
+- Gérer les commandes fournisseurs → Gérer le stock
+- Gérer l'inventaire → Gérer le stock
+- Gérer les créances/dettes → Gérer la comptabilité
+
+## 5.6 Relations <<extend>> à tracer (lignes pointillées avec flèche vers le cas étendant)
+
+- Suspendre un ticket → Gérer les ventes
+- Reprendre un ticket suspendu → Gérer les ventes
+- Annuler une vente → Gérer les ventes
+- Appliquer des remises → Gérer les ventes
+- Gérer les péremptions → Gérer le stock
+
+================================================================================
+6. LÉGENDE UML
+================================================================================
+
+**Symboles à utiliser dans draw.io :**
+
+- **Stickman** : Acteur (utilisateur humain)
+- **Ellipse** : Cas d'utilisation
+- **Rectangle** : Package (regroupement de cas d'utilisation)
+- **Ligne pleine** : Association (acteur utilise le cas d'utilisation)
+- **Ligne pointillée avec <<include>>** : Inclusion (cas d'utilisation inclus obligatoirement)
+- **Ligne pointillée avec <<extend>>** : Extension (cas d'utilisation étend optionnellement)
+
+**Couleurs suggérées :**
+- Acteurs : Bleu foncé
+- Cas d'utilisation : Vert clair
+- Packages : Gris clair
+- Lignes : Noir
+- Relations include : Orange
+- Relations extend : Violet
+
+================================================================================
+7. DIAGRAMMES DÉTAILLÉS À PRÉVOIR ENSUITE
+================================================================================
+
+Basé sur l'analyse du code, les diagrammes détaillés suivants sont recommandés pour la suite du mémoire :
+
+### 7.1 Diagramme de cas d'utilisation détaillé des ventes
+**Cas d'utilisation à détailler :**
+- Créer une vente
+- Consulter historique des ventes
+- Annuler une vente
+- Suspendre un ticket
+- Reprendre un ticket suspendu
+- Imprimer un ticket/facture
+- Rechercher produits
+- Vérifier plafond crédit client
+- Traiter ordonnance
+
+**Acteurs :** Vendeur, Assistant, Administrateur
+
+### 7.2 Diagramme de séquence d'une vente
+**Séquence :**
+1. Vendeur s'authentifie
+2. Vendeur ouvre session caisse
+3. Vendeur ajoute produits au panier
+4. Système vérifie disponibilité stock
+5. Système vérifie plafond crédit (si client)
+6. Vendeur applique remises (si autorisé)
+7. Vendeur sélectionne mode de paiement
+8. Système enregistre la vente
+9. Système met à jour le stock
+10. Système enregistre mouvement caisse
+11. Système génère écriture comptable
+12. Système imprime le ticket
+
+**Acteurs/Objets :** Vendeur, VenteController, VenteService, StockService, CaisseService, ComptabiliteService, Base de données
+
+### 7.3 Diagramme de séquence d'une commande fournisseur
+**Séquence :**
+1. Charge de commande s'authentifie
+2. Charge de commande crée commande
+3. Charge de commande ajoute lignes de commande
+4. Système calcule totaux
+5. Charge de commande valide et envoie commande
+6. Système met à jour statut commande
+7. Fournisseur reçoit commande
+8. Charge de commande réceptionne commande
+9. Système enregistre réception
+10. Système met à jour stock
+11. Système génère écriture comptable
+
+**Acteurs/Objets :** Charge de commande, ChargeCommandeController, ChargeCommandeService, StockService, ComptabiliteService, Base de données
+
+### 7.4 Diagramme de séquence d'une réception
+**Séquence :**
+1. Charge de commande sélectionne commande à réceptionner
+2. Système affiche détails commande
+3. Charge de commande saisit quantités reçues
+4. Système vérifie conformité
+5. Charge de commande valide réception
+6. Système met à jour statut commande
+7. Système enregistre entrée stock
+8. Système met à jour quantités produits
+9. Système génère écriture comptable
+10. Système archive commande
+
+**Acteurs/Objets :** Charge de commande, ChargeCommandeController, ChargeCommandeService, StockService, ComptabiliteService, Base de données
+
+### 7.5 Diagramme de séquence d'un inventaire
+**Séquence :**
+1. Assistant/Administrateur s'authentifie
+2. Assistant/Administrateur crée inventaire
+3. Système initialise inventaire
+4. Assistant/Administrateur saisit articles
+5. Système compare stock théorique/réel
+6. Assistant/Administrateur valide inventaire
+7. Système calcule écarts
+8. Système ajuste stock
+9. Système génère rapport inventaire
+10. Système archive inventaire
+
+**Acteurs/Objets :** Assistant/Administrateur, InventaireController, InventaireService, StockService, Base de données
+
+### 7.6 Diagramme de séquence d'une opération comptable
+**Séquence :**
+1. Comptable/Administrateur s'authentifie
+2. Comptable/Administrateur accède module comptabilité
+3. Système affiche plan comptable
+4. Comptable/Administrateur consulte journaux
+5. Système affiche écritures
+6. Comptable/Administrateur génère balance
+7. Système vérifie équilibre
+8. Comptable/Administrateur génère états financiers
+9. Système calcule bilan/compte résultat
+10. Comptable/Administrateur exporte données
+
+**Acteurs/Objets :** Comptable/Administrateur, ComptabiliteController, PlanComptableService, JournalComptableService, BalanceGeneraleService, EtatsFinanciersService, Base de données
+
+### 7.7 Diagramme de séquence d'une clôture de caisse
+**Séquence :**
+1. Vendeur/Assistant s'authentifie
+2. Vendeur/Assistant demande fermeture session
+3. Système affiche récapitulatif session
+4. Vendeur/Assistant saisit montant réel
+5. Système calcule écarts
+6. Vendeur/Assistant valide fermeture
+7. Système met à jour statut session
+8. Système archive session dans historique
+9. Système génère rapport clôture
+10. Système libère session pour utilisateur
+
+**Acteurs/Objets :** Vendeur/Assistant, CaisseController, CaisseService, Base de données
+
+================================================================================
+8. DIFFÉRENCES ENTRE CAHIER DES CHARGES ET IMPLÉMENTATION
+================================================================================
+
+⚠️ **Aucune différence majeure détectée** entre le cahier des charges et l'implémentation actuelle.
+
+**Points conformes :**
+- Les 5 rôles sont correctement implémentés
+- Le système RBAC est fonctionnel
+- Les permissions sont granulaires
+- La double authentification Assistant est implémentée
+- Les sessions de caisse (1-3) sont gérées
+- L'audit est complet avec triggers
+- La comptabilité SYSCOA est intégrée
+
+**Note :** Le rôle COMPTABLE a l'ID 6 dans la base de données (pas 5), mais cela n'a pas d'impact fonctionnel.
+
+================================================================================
+9. TITRE ACADÉMIQUE ET SOURCE
+================================================================================
+
+**Figure 3.1 : Diagramme de cas d'utilisation général de l'ERP de gestion pharmaceutique**
+
+Source :
+
+**Conception personnelle à partir de l'analyse du système développé.**
+
+================================================================================
+FIN DU RAPPORT D'ANALYSE
+================================================================================

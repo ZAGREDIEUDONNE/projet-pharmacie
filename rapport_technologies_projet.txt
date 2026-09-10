@@ -1,0 +1,300 @@
+================================================================================
+RAPPORT D'INVENTAIRE DES TECHNOLOGIES — ERP GESTION PHARMACEUTIQUE
+================================================================================
+Date : 2 septembre 2026
+Objectif : Inventaire COMPLET des technologies réellement utilisées dans l'application
+Scope : Code, configuration, fichiers présents dans le projet
+
+================================================================================
+1. BACKEND
+================================================================================
+
+Langage : PHP
+- Version : ^8.0 (spécifié dans composer.json)
+- Fichiers : composer.json, composer.lock
+- Rôle : Langage principal de l'application
+
+Framework : AUCUN (Custom MVC)
+- Description : Architecture MVC personnalisée, pas de framework standard (Laravel, Symfony, etc.)
+- Fichiers : app/Core/Router.php, app/Core/BaseController.php, public/index.php
+- Rôle : Architecture de l'application
+
+Architecture utilisée : MVC (Model-View-Controller)
+- Controllers : app/Controllers/ (26 contrôleurs)
+- Services : app/Services/ (couche métier)
+- Models : app/Models/ (accès aux données)
+- Repositories : app/Repositories/ (accès aux données)
+- Middleware : app/Middleware/ (intercepteurs de requêtes)
+- Core : app/Core/ (classes de base)
+- Views : app/Views/ (vues PHP)
+- Fichiers : public/index.php, config/routes.php
+- Rôle : Séparation des responsabilités
+
+Autoloader : PSR-4 manuel
+- Fichiers : public/index.php (lignes 13-43)
+- Rôle : Chargement automatique des classes
+- Namespaces : App\Controllers, App\Core, App\Services, App\Repositories, App\Models, App\Middleware
+
+================================================================================
+2. FRONTEND
+================================================================================
+
+HTML : HTML5
+- Fichiers : app/Views/*.php (74 fichiers de vues)
+- Rôle : Structure des pages web
+- Exemples : app/Views/home/index.php, app/Views/dashboard/index.php
+
+CSS : TailwindCSS
+- Nom : TailwindCSS
+- Version : 2.2.19
+- Fichiers : Chargé via CDN dans toutes les vues
+- Lien : https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css
+- Rôle : Framework CSS pour le style
+- Utilisation : Classes utilitaires pour le design responsive
+
+Bibliothèques d'icônes : Font Awesome
+- Nom : Font Awesome
+- Version : 6.0.0
+- Fichiers : Chargé via CDN dans toutes les vues
+- Lien : https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css
+- Rôle : Icônes vectorielles pour l'interface
+
+JavaScript : JavaScript natif (AUCUN framework)
+- Description : JavaScript natif sans framework (pas de jQuery, React, Vue, Angular)
+- Fichiers : Scripts inline dans les vues PHP
+- Rôle : Interactivité côté client
+- Note : Pas de bibliothèques JavaScript détectées
+
+Frameworks/bibliothèques JavaScript : AUCUN
+- ❌ jQuery : Non utilisé
+- ❌ React : Non utilisé
+- ❌ Vue.js : Non utilisé
+- ❌ Angular : Non utilisé
+- ❌ Bootstrap : Non utilisé (TailwindCSS utilisé à la place)
+
+Composants UI : AUCUN
+- Description : Pas de bibliothèque de composants UI (pas de shadcn/ui, pas de Material UI)
+- Rôle : Les composants sont créés manuellement avec TailwindCSS
+
+================================================================================
+3. BASE DE DONNÉES
+================================================================================
+
+SGBD : MySQL
+- Version : Non spécifiée dans le code (supporte MySQL 8.4 selon commentaire)
+- Fichiers : config/database.php, .env, database/schema.sql
+- Rôle : Stockage des données
+
+Moteur : InnoDB
+- Fichiers : database/schema.sql (spécifié dans CREATE TABLE)
+- Rôle : Moteur de stockage avec support des transactions et clés étrangères
+
+Méthodes d'accès aux données : PDO (PHP Data Objects)
+- Fichiers : config/database.php, app/Services/*.php, app/Controllers/*.php
+- Rôle : Abstraction d'accès à la base de données
+- Caractéristiques :
+  - Prepared statements (PDO::ATTR_EMULATE_PREPARES = false)
+  - Connexion persistante (PDO::ATTR_PERSISTENT = true)
+  - Mode d'erreur exception (PDO::ATTR_ERRMODE = PDO::ERRMODE_EXCEPTION)
+  - Fetch mode associatif (PDO::ATTR_DEFAULT_FETCH_MODE = PDO::FETCH_ASSOC)
+
+Transactions : ACID
+- Fichiers : app/Services/VenteService.php, app/Services/CaisseService.php, app/Services/ChargeCommandeService.php
+- Rôle : Garantie de cohérence des données
+- Méthodes : beginTransaction(), commit(), rollback()
+- Utilisation : Ventes, caisse, commandes, stock
+
+Contraintes et mécanismes importants :
+- FOREIGN KEY : Clés étrangères pour l'intégrité référentielle
+- UNIQUE : Contraintes d'unicité (username, email, code_cip, code_barre, etc.)
+- CHECK : Contraintes de validation (prix_vente >= prix_achat, stock >= 0)
+- INDEX : Index pour l'optimisation des requêtes
+- AUTO_INCREMENT : Identifiants auto-incrémentés
+- TIMESTAMP : Horodatage automatique (created_at, updated_at)
+- DEFAULT : Valeurs par défaut
+- NOT NULL : Champs obligatoires
+- Soft delete : deleted_at (suppression logique)
+
+Charset : utf8mb4
+- Collation : utf8mb4_unicode_ci
+- Fichiers : config/database.php
+- Rôle : Support des caractères Unicode (emojis, caractères spéciaux)
+
+Configuration :
+- Host : localhost (configurable via .env)
+- Port : 3306 (configurable via .env)
+- Database : medecin (configurable via .env)
+- Username : root (configurable via .env)
+- Password : vide (configurable via .env)
+
+================================================================================
+4. SERVEUR ET ENVIRONNEMENT
+================================================================================
+
+Serveur web : Apache
+- Fichiers : public/.htaccess
+- Rôle : Serveur HTTP avec réécriture d'URL
+- Modules Apache :
+  - mod_rewrite : Réécriture d'URL
+  - mod_authz_core : Contrôle d'accès
+  - mod_headers : Headers HTTP de sécurité
+  - mod_php : Module PHP
+
+Environnement local : WAMP64
+- Chemin : c:\wamp64\www\medecin
+- Rôle : Environnement de développement Windows
+- Composants : Windows + Apache + MySQL + PHP
+
+PHP :
+- Version : ^8.0 (spécifié dans composer.json)
+- Fichiers : composer.json, public/index.php
+- Extensions importantes :
+  - PDO : Accès aux bases de données
+  - PDO_MYSQL : Driver MySQL pour PDO
+  - Session : Gestion des sessions
+  - Hash : Hashage des mots de passe (PASSWORD_DEFAULT)
+  - Json : Encodage/décodage JSON
+  - Mbstring : Manipulation de chaînes multioctets
+
+Configuration PHP :
+- display_errors : Off (production)
+- error_log : /var/log/php_errors.log
+- sql_mode : STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_VALUE_ON_ZERO
+- time_zone : +00:00 (UTC)
+- innodb_lock_wait_timeout : 50
+
+Configuration session :
+- SESSION_LIFETIME : 3600 secondes (1 heure)
+- SESSION_PATH : /tmp
+- SESSION_COOKIE_NAME : pharmacie_session
+
+Configuration cache :
+- CACHE_DRIVER : file
+- CACHE_PREFIX : pharmacie_
+- CACHE_LIFETIME : 3600
+
+Configuration fichiers :
+- UPLOAD_MAX_SIZE : 5242880 octets (5MB)
+- UPLOAD_ALLOWED_TYPES : jpg, jpeg, png, pdf
+- UPLOAD_PATH : /uploads
+
+================================================================================
+5. BИБLIOTHÈQUES ET DÉPENDANCES
+================================================================================
+
+Composer : Gestionnaire de dépendances PHP
+- Version : 2.9.0 (plugin-api-version dans composer.lock)
+- Fichiers : composer.json, composer.lock, vendor/autoload.php
+- Rôle : Autoloader PSR-4
+- Dépendances : AUCUNE (packages vide dans composer.lock)
+- Note : Pas de bibliothèques PHP externes installées
+
+npm : AUCUN
+- Description : Pas de gestionnaire de paquets JavaScript
+- Fichiers : package.json non présent
+- Rôle : Non utilisé
+
+Bibliothèques PHP : AUCUNE
+- Description : Pas de bibliothèques PHP externes installées
+- Fichiers : composer.lock (packages vide)
+- Note : Toutes les fonctionnalités sont développées en PHP natif
+
+Bibliothèques JavaScript : AUCUNE
+- Description : Pas de bibliothèques JavaScript installées
+- Fichiers : Aucun fichier .js détecté
+- Note : JavaScript natif uniquement
+
+Génération PDF : AUCUNE
+- Description : Pas de bibliothèque de génération PDF détectée
+- Fichiers : Aucune référence à TCPDF, Dompdf, FPDF
+- Note : Les impressions sont faites via CSS @media print
+
+Export Excel/CSV : PHP natif
+- Méthode : fputcsv() (fonction PHP native)
+- Fichiers : app/Services/JournalCaisseService.php (méthode exportToCSV)
+- Rôle : Export CSV du journal de caisse
+- Note : Pas de PhpSpreadsheet ou PHPExcel
+
+Graphiques : AUCUN
+- Description : Pas de bibliothèque de graphiques détectée
+- Fichiers : Aucune référence à Chart.js, Highcharts, Chartjs
+- Note : Les statistiques sont affichées en tableau HTML
+
+Autres dépendances importantes : AUCUNE
+- Description : Pas d'autres dépendances détectées
+- Note : Application développée en PHP natif avec CSS/JS CDN
+
+================================================================================
+6. OUTILS DE DÉVELOPPEMENT
+================================================================================
+
+IDE : Visual Studio Code
+- Fichiers : .vscode/ (répertoire présent)
+- Rôle : Éditeur de code
+- Configuration : Non spécifiée
+
+Git/GitHub : Git
+- Fichiers : .git/ (répertoire présent)
+- Rôle : Contrôle de version
+- Note : Repository Git initialisé
+
+Outils de test : AUCUN
+- Description : Pas de framework de test détecté
+- Fichiers : Aucune référence à PHPUnit, Pest, Codeception
+- Note : Tests manuels via fichiers test_*.php (28 fichiers de test)
+
+Outils de gestion de dépendances :
+- Composer : Gestion des dépendances PHP
+- npm : Non utilisé
+
+Autres outils :
+- Scripts de migration : execute_migration.php, run_migration.php
+- Scripts de test : test_*.php (28 fichiers)
+- Scripts de vérification : check_*_table.php (8 fichiers)
+
+================================================================================
+SYNTHÈSE COURTE
+================================================================================
+
+Technologies réellement utilisées dans le projet
+
+Backend :
+- PHP 8.0+ (langage principal)
+- Custom MVC (pas de framework)
+- Architecture MVC avec Controllers, Services, Models, Repositories, Middleware
+- Autoloader PSR-4 manuel
+
+Frontend :
+- HTML5
+- TailwindCSS 2.2.19 (via CDN)
+- Font Awesome 6.0.0 (via CDN)
+- JavaScript natif (pas de framework)
+
+Base de données :
+- MySQL (version non spécifiée)
+- Moteur InnoDB
+- PDO pour l'accès aux données
+- Transactions ACID
+- Contraintes : FOREIGN KEY, UNIQUE, CHECK, INDEX
+
+Serveur et environnement :
+- Apache (avec mod_rewrite)
+- WAMP64 (environnement local Windows)
+- PHP 8.0+ avec extensions PDO, Session, Hash, Json, Mbstring
+
+Bibliothèques et dépendances :
+- Composer (autoloader PSR-4, pas de dépendances externes)
+- Aucune bibliothèque PHP externe
+- Aucune bibliothèque JavaScript
+- Export CSV via PHP natif (fputcsv)
+- Pas de génération PDF
+- Pas de graphiques
+
+Outils de développement :
+- Visual Studio Code
+- Git
+- Tests manuels (pas de framework de test)
+
+================================================================================
+FIN DU RAPPORT D'INVENTAIRE DES TECHNOLOGIES
+================================================================================

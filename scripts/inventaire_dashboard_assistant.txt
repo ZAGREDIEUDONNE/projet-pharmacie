@@ -1,0 +1,484 @@
+=== INVENTAIRE COMPLET - DASHBOARD ASSISTANT ===
+Date: 2026-08-15
+Fichier: app/Views/assistant/dashboard.php
+
+========================================
+1. STRUCTURE GLOBALE
+========================================
+
+Layout: Grid avec sidebar (250px) + contenu principal
+Responsive: Oui (mobile, tablette, desktop)
+Framework CSS: Tailwind CSS 2.2.19
+Icônes: FontAwesome 6.0.0
+Police: Inter, ui-sans-serif, system-ui
+
+========================================
+2. EN-TÊTE (TOPBAR)
+========================================
+
+Élément: header.topbar
+Position: Sticky top
+Background: rgba(244, 247, 251, .94) avec backdrop-filter blur(12px)
+Border-bottom: 1px solid #e5e7eb
+Padding: px-4 sm:px-6 lg:px-8 py-4
+
+Contenu:
+- Titre h1: "Dashboard Assistant" (text-2xl font-bold text-gray-900)
+- Sous-titre p: "Ventes, caisse, clients et suivi operationnel" (text-sm text-gray-500)
+- Nom utilisateur: font-semibold text-gray-900
+- Date/heure: text-gray-500 (format d/m/Y H:i)
+
+Messages flash:
+- Success: bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6
+- Error: bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6
+
+========================================
+3. LOADER (SKELETON)
+========================================
+
+ID: #loader
+Structure: Grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4
+Contenu: 6 cartes skeleton
+- Chaque carte: card p-5
+- Skeleton h-4 w-24 rounded mb-4
+- Skeleton h-8 w-32 rounded
+
+========================================
+4. CONTENU PRINCIPAL
+========================================
+
+ID: #content
+Classe: hidden (affiché après chargement API)
+
+========================================
+5. SECTION KPIS PRINCIPAUX
+========================================
+
+ID: #kpis
+Structure: Grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6
+Contenu: 4 cartes KPI (générées par JavaScript)
+
+KPIs affichés:
+1. CA du jour (fa-coins, var(--green))
+2. Ventes du jour (fa-receipt, var(--blue))
+3. Alertes stock (fa-triangle-exclamation, var(--amber))
+4. Caisse (fa-cash-register, var(--green) ou #64748b)
+
+Style carte KPI:
+- class: card kpi p-5
+- --accent: couleur dynamique
+- Flex layout avec icône et valeur
+
+========================================
+6. SECTION RÉSUMÉ DE LA JOURNÉE
+========================================
+
+Structure: card p-5 mb-6
+Titre: "Resume de la journee" (text-lg font-bold text-gray-900)
+Sous-titre: "Indicateurs operationnels" (text-sm text-gray-500)
+Contenu: Grid grid-cols-2 sm:grid-cols-4 gap-4
+ID: #dayStats
+
+Indicateurs (générés par JavaScript):
+1. Encaissements (fa-money-bill-wave, var(--green))
+2. Tickets annulés (fa-times-circle, var(--red))
+3. Clients actifs (fa-users, var(--blue))
+4. Commandes attente (fa-clipboard-list, var(--amber))
+
+Style indicateur:
+- text-center p-3 bg-gray-50 rounded-lg
+- icône + label + valeur
+
+========================================
+7. SECTION ACTIONS RAPIDES (ESSSENTIEL)
+========================================
+
+Structure: card p-5 mb-6
+Titre: "Essentiel" (text-lg font-bold text-gray-900)
+Sous-titre: "Les actions les plus utilisees" (text-sm text-gray-500)
+Contenu: Grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3
+
+Actions affichées (4 premières):
+1. Créer Client (create_client)
+2. Modifier Client (edit_client)
+3. Vente (make_sale)
+4. Annuler Ticket (cancel_ticket)
+
+Style action:
+- class: action
+- --accent: couleur dynamique (actionColors)
+- icône + titre + description
+
+Couleurs accent:
+- actionColors[0]: couleur pour action 1
+- actionColors[1]: couleur pour action 2
+- etc.
+
+========================================
+8. SECTION TABLEAUX VISIBLES
+========================================
+
+Structure: Grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6
+
+8.1 TABLEAU ALERTES STOCK
+- Structure: card p-5
+- Titre: "Alertes stock" (text-lg font-bold text-gray-900)
+- Sous-titre: "A traiter en priorite" (text-sm text-gray-500)
+- Search: input.search data-search="stockTable"
+- Contenu: #stockTable (généré par JavaScript)
+
+8.2 TABLEAU VENTES RÉCENTES
+- Structure: card p-5
+- Titre: "Ventes recentes" (text-lg font-bold text-gray-900)
+- Sous-titre: "Derniers tickets enregistres" (text-sm text-gray-500)
+- Search: input.search data-search="salesTable"
+- Contenu: #salesTable (généré par JavaScript)
+
+========================================
+9. SECTION DÉTAILS (CACHÉE)
+========================================
+
+Structure: details.disclosure mb-6
+Summary: "Voir les details" + "Caisse, autres actions, commandes et mouvements"
+Body: .disclosure-body
+
+9.1 ÉTAT CAISSE
+- Inclusion: require __DIR__ . '/../partials/caisse-status.php'
+
+9.2 AUTRES ACTIONS (si count($actions) > 4)
+- Structure: section mb-6
+- Titre: "Autres actions" (text-lg font-bold text-gray-900)
+- Sous-titre: "Moins frequentes, disponibles si besoin" (text-sm text-gray-500)
+- Contenu: Grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3
+- Actions: array_slice($actions, 4) (5 actions restantes)
+
+Actions secondaires:
+5. Remise (apply_discount)
+6. Arrêt Caisse (close_cash_register)
+7. Voir Statistiques (view_statistics)
+8. Mouvements Stock (view_stock_movements)
+9. Préparation Commande (prepare_orders)
+
+9.3 TABLEAUX ADDITIONNELS
+Structure: Grid grid-cols-1 xl:grid-cols-2 gap-6
+
+9.3.1 TABLEAU COMMANDES À SUIVRE
+- Structure: card p-5
+- Titre: "Commandes a suivre" (text-lg font-bold text-gray-900)
+- Sous-titre: "Commandes fournisseur en attente" (text-sm text-gray-500)
+- Search: input.search data-search="ordersTable"
+- Contenu: #ordersTable (généré par JavaScript)
+
+9.3.2 TABLEAU MOUVEMENTS STOCK
+- Structure: card p-5
+- Titre: "Mouvements stock" (text-lg font-bold text-gray-900)
+- Sous-titre: "Entrees et sorties recentes" (text-sm text-gray-500)
+- Search: input.search data-search="movementsTable"
+- Contenu: #movementsTable (généré par JavaScript)
+
+========================================
+10. MENU LATÉRAL (SIDEBAR)
+========================================
+
+Structure: aside.sidebar
+Background: #111827 (gris foncé)
+Color: #e5e7eb
+Padding: 20px 16px
+Position: sticky top, height 100vh
+
+10.1 BRAND
+- Structure: .brand
+- Icône: .brand-icon (42x42, background var(--blue), color #fff)
+- Texte: "Medecin ERP"
+
+10.2 NAVIGATION PRINCIPALE
+- Dashboard (active)
+- Vente
+- Clients
+- Suivi Client (sous-menu avec 9 liens)
+- Caisse
+- Stock
+- Déconnexion
+
+10.3 SOUS-MENU SUIVI CLIENT
+ID: #suiviClientSubmenu
+Liens (si permission suivi_client.view):
+1. Suivi Client (suivi-client)
+2. Nouvelle saisie (suivi-client/create)
+3. Liste clients (suivi-client/liste-clients)
+4. Saisie reglement (suivi-client/saisie-reglement)
+5. Releve courant (suivi-client/releve-courant)
+6. Solde courant (suivi-client/solde-courant)
+7. Releve arrete (suivi-client/releve-arrete)
+8. Solde arrete (suivi-client/solde-arrete)
+9. Releve client (suivi-client/releve-client)
+
+10.4 LIENS PRINCIPAUX
+- /assistant/dashboard (Dashboard)
+- /vente/create (Vente)
+- /clients (Clients)
+- /caisse/etat (Caisse)
+- /stock (Stock)
+- /logout (Déconnexion)
+
+========================================
+11. CSS (INLINE)
+========================================
+
+Variables CSS:
+- --surface: #f4f7fb
+- --panel: #ffffff
+- --line: #e5e7eb
+- --text: #172033
+- --muted: #667085
+- --blue: #2563eb
+- --green: #059669
+- --amber: #d97706
+- --red: #dc2626
+- --violet: #7c3aed
+- --cyan: #0891b2
+
+Classes principales:
+- .layout: grid layout
+- .sidebar: sidebar styling
+- .brand: brand styling
+- .nav-link: navigation links
+- .topbar: header styling
+- .card: card styling
+- .action: action card styling
+- .skeleton: loading skeleton
+- .disclosure: details/summary styling
+- .badge: status badges
+- .search: search input styling
+
+Animations:
+- nav-link: background .18s ease, color .18s ease
+- action: background .18s ease, transform .15s ease
+
+========================================
+12. JAVASCRIPT
+========================================
+
+Variables globales:
+- tables: {} (objet pour stocker les données des tableaux)
+- nf: Intl.NumberFormat('fr-FR')
+- moneyFormat: Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
+
+Fonctions utilitaires:
+- esc(value): échappement HTML
+- money(value): formatage monétaire (FCFA)
+- badge(value): génération de badges de statut
+
+Fonctions de rendu:
+- renderKpis(widgets, cash): rendu des 4 KPIs principaux
+- renderDayStats(widgets): rendu des 4 indicateurs secondaires
+- createTable(id, rows, columns, emptyText): création de table
+- drawTable(id): rendu du tableau
+- renderTables(data): rendu de tous les tableaux
+
+Fonctions de tri:
+- sortTable(id, key): tri du tableau
+- toggleSort(id, key): basculement du tri
+
+Fonction de recherche:
+- filterTable(id): filtrage du tableau
+
+Appel API:
+- fetch('/assistant/api/dashboard', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+- Gestion des erreurs
+- Affichage du loader
+- Rendu du contenu
+
+========================================
+13. DONNÉES API
+========================================
+
+Endpoint: /assistant/api/dashboard
+Méthode: GET
+Headers: X-Requested-With: XMLHttpRequest
+
+Structure de réponse:
+{
+  data: {
+    widgets: {
+      ventes_jour: number,
+      ca_jour: number,
+      montant_encaisse: number,
+      tickets_annules: number,
+      clients_actifs: number,
+      produits_alerte: number,
+      commandes_attente: number,
+      caisse_ouverte: 0|1
+    },
+    stats: {...},
+    stock_alerts: [...],
+    pending_orders: [...],
+    cash_register: {...},
+    recent_sales: [...],
+    recent_activity: [...],
+    recent_stock_movements: [...],
+    notifications: [...],
+    updated_at: string
+  }
+}
+
+========================================
+14. TABLES GÉNÉRÉES PAR JAVASCRIPT
+========================================
+
+14.1 TABLEAU ALERTES STOCK
+ID: stockTable
+Colonnes: produit, stock, statut
+Données: data.stock_alerts
+
+14.2 TABLEAU VENTES RÉCENTES
+ID: salesTable
+Colonnes: reference, client, montant, date, statut
+Données: data.recent_sales
+
+14.3 TABLEAU COMMANDES À SUIVRE
+ID: ordersTable
+Colonnes: reference, fournisseur, statut, date
+Données: data.pending_orders
+
+14.4 TABLEAU MOUVEMENTS STOCK
+ID: movementsTable
+Colonnes: produit, type, quantite, date
+Données: data.recent_stock_movements
+
+========================================
+15. ACTIONS DU DASHBOARD
+========================================
+
+Tableau $actions (9 actions):
+1. Créer Client
+   - Permission: create_client
+   - URL: /clients/create
+   - Icône: fa-user-plus
+   - Description: Enregistrer un nouveau client
+
+2. Modifier Client
+   - Permission: edit_client
+   - URL: /clients
+   - Icône: fa-user-edit
+   - Description: Mettre a jour les informations client
+
+3. Vente
+   - Permission: make_sale
+   - URL: /vente/create
+   - Icône: fa-shopping-cart
+   - Description: Enregistrer une vente
+
+4. Annuler Ticket
+   - Permission: cancel_ticket
+   - URL: /assistant/annulation-ticket
+   - Icône: fa-times-circle
+   - Description: Annuler une vente avec motif
+
+5. Remise
+   - Permission: apply_discount
+   - URL: /assistant/remise
+   - Icône: fa-percentage
+   - Description: Appliquer une remise
+
+6. Arrêt Caisse
+   - Permission: close_cash_register
+   - URL: /assistant/arret-caisse
+   - Icône: fa-lock
+   - Description: Cloturer la session caisse
+
+7. Voir Statistiques
+   - Permission: view_statistics
+   - URL: /assistant/statistiques
+   - Icône: fa-chart-bar
+   - Description: Consulter les statistiques
+
+8. Mouvements Stock
+   - Permission: view_stock_movements
+   - URL: /assistant/mouvements-produits
+   - Icône: fa-exchange-alt
+   - Description: Voir les entrees et sorties
+
+9. Préparation Commande
+   - Permission: prepare_orders
+   - URL: /assistant/preparation-commandes
+   - Icône: fa-clipboard-list
+   - Description: Preparer les commandes fournisseur
+
+========================================
+16. COULEURS ACCENT (ACTION COLORS)
+========================================
+
+actionColors: [
+  '#2563eb', // bleu
+  '#059669', // vert
+  '#d97706', // amber
+  '#dc2626', // rouge
+  '#7c3aed', // violet
+  '#0891b2', // cyan
+]
+
+========================================
+17. BADGES DE STATUT
+========================================
+
+Couleurs:
+- badge-green: OUVERTE, VALIDEE, PAYEE, RECEPTION_COMPLETE, ENTREE
+- badge-gray: FERMEE, BROUILLON
+- badge-red: ANNULEE, SORTIE, RUPTURE
+- badge-amber: PARTIELLEMENT_PAYEE, RECEPTION_PARTIELLE, PARTIELLEMENT_LIVREE, FAIBLE
+- badge-blue: ENVOYEE, AJUSTEMENT
+
+========================================
+18. RESPONSIVE BREAKPOINTS
+========================================
+
+- sm: 640px
+- md: 768px
+- xl: 1280px
+
+Grilles:
+- grid-cols-1: mobile
+- grid-cols-2: tablette/desktop
+- grid-cols-3: desktop large
+- grid-cols-4: desktop très large
+
+========================================
+19. TOTAL DES ÉLÉMENTS
+========================================
+
+Sections: 7
+- En-tête
+- Loader
+- KPIs principaux (4)
+- Résumé de la journée (4)
+- Actions rapides (4)
+- Tableaux visibles (2)
+- Détails cachés (caisse + autres actions + 2 tableaux)
+
+KPIs: 8
+- Principaux: 4
+- Secondaires: 4
+
+Actions: 9
+- Rapides: 4
+- Secondaires: 5
+
+Tableaux: 4
+- Visibles: 2
+- Cachés: 2
+
+Menu latéral: 7 liens principaux + 9 liens sous-menu
+
+========================================
+20. LIGNES DE CODE
+========================================
+
+Total lignes: 677
+- HTML: ~400 lignes
+- CSS: ~100 lignes
+- JavaScript: ~177 lignes
+
+========================================
+FIN DE L'INVENTAIRE
+========================================

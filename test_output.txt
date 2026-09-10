@@ -1,0 +1,39 @@
+﻿{
+    "base_url": "http:\/\/localhost",
+    "unauthenticated": {
+        "dashboard": {
+            "status": 302,
+            "location": "\/login",
+            "pass": true
+        },
+        "api": {
+            "status": 401,
+            "content_type": "application\/json; charset=utf-8",
+            "json": true,
+            "pass": true
+        }
+    },
+    "authenticated": "BLOCKED_MISSING_COMPTABLE_LOGIN_OR_PASSWORD",
+    "routes": [],
+    "api": [],
+    "csrf": [],
+    "rbac": [],
+    "production": {
+        "before": {
+            "ecritures": 76,
+            "lignes": 155,
+            "reglements": 7,
+            "ventes": 72,
+            "caisse": 11,
+            "ecriture_109": "{\"id\":109,\"journal_id\":2,\"compte_id\":null,\"debit\":\"0.00\",\"credit\":\"0.00\",\"libelle\":\"Test SYSCOHADA\",\"created_at\":\"2026-06-23 10:28:18\",\"numero_piece\":\"VT202606230002\",\"date_ecriture\":\"2026-06-23 08:28:18\",\"reference_type\":\"TEST\",\"reference_id\":999001,\"ecriture_origine_id\":null,\"utilisateur_id\":1,\"periode_comptable\":\"2026-06\",\"total_debit\":\"1000.00\",\"total_credit\":\"1000.00\",\"is_equilibree\":1,\"updated_at\":\"2026-06-23 10:28:18\"}"
+        }
+    },
+    "limits": [
+        "Recette authentifi├®e et RBAC HTTP non ex├®cut├®s : COMPTABLE_LOGIN et\/ou COMPTABLE_PASSWORD absent(s)."
+    ],
+    "non_regression": [],
+    "summary": {
+        "unauthenticated_pass": true,
+        "authenticated": "BLOCKED"
+    }
+}

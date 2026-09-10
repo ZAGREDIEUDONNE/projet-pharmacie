@@ -1,0 +1,314 @@
+=== RAPPORT D'AUDIT FONCTIONNEL - DASHBOARD ASSISTANT ===
+Date: 2026-08-15
+Mission: Audit fonctionnel complet du Dashboard Assistant avant toute modification
+
+========================================
+A. PROBLÈMES TROUVÉS
+========================================
+
+| Élément | Problème | Gravité | Correction proposée |
+| ------- | -------- | ------- | ------------------- |
+| solde_caisse | Donnée sensible encore présente dans le code (commentée) | MOYENNE | Déjà supprimé des widgets, vérifier qu'il n'y a pas d'autres références |
+| Permissions suivi_client | 7 permissions du module suivi_client non utilisées par le contrôleur | FAIBLE | Optionnel: supprimer si non utilisées par d'autres modules |
+| Annulation Ticket | L'Assistant peut annuler directement sans validation supérieure | MOYENNE | À valider: vérifier si ce niveau d'autorisation est approprié |
+| Arrêt Caisse | L'Assistant peut clôturer une caisse sans validation supérieure | MOYENNE | À valider: vérifier si ce niveau d'autorisation est approprié |
+| Statistiques | Les statistiques accessibles pourraient révéler des informations réservées | MOYENNE | À valider: vérifier le contenu des statistiques accessibles |
+| Navigation Suivi Client | Sous-menu avec 9 liens vers un module séparé | FAIBLE | Optionnel: simplifier ou déplacer si non spécifique au rôle |
+
+========================================
+B. FONCTIONNALITÉS À CONSERVER
+========================================
+
+1. **Créer Client** (create_client)
+   - Permission: create_client
+   - Route: /clients/create
+   - Contrôleur: ClientController@create
+   - Justification: Création de client est une tâche opérationnelle courante pour l'Assistant
+   - Niveau de risque: FAIBLE
+
+2. **Modifier Client** (edit_client)
+   - Permission: edit_client
+   - Route: /clients
+   - Contrôleur: ClientController@index
+   - Justification: Modification de client est une tâche opérationnelle courante
+   - Niveau de risque: FAIBLE
+
+3. **Vente** (make_sale)
+   - Permission: make_sale
+   - Route: /vente/create
+   - Contrôleur: VenteController@create
+   - Justification: La vente est la fonction principale de l'Assistant
+   - Niveau de risque: MOYEN
+
+4. **Annuler Ticket** (cancel_ticket)
+   - Permission: cancel_ticket
+   - Route: /assistant/annulation-ticket
+   - Contrôleur: AssistantController@annulationTickets
+   - Justification: L'Assistant doit pouvoir annuler des tickets avec motif obligatoire et traçabilité
+   - Niveau de risque: ÉLEVÉ
+   - Note: Le système actuel inclut motif obligatoire, traçabilité et audit
+
+5. **Remise** (apply_discount)
+   - Permission: apply_discount
+   - Route: /assistant/remise
+   - Contrôleur: AssistantController@remise
+   - Justification: L'Assistant peut appliquer des remises dans la limite de 15% (plafond rôle)
+   - Niveau de risque: MOYEN
+   - Note: DiscountLimitService définit le plafond à 15% pour le rôle Assistant
+
+6. **Arrêt Caisse** (close_cash_register)
+   - Permission: close_cash_register
+   - Route: /assistant/arret-caisse
+   - Contrôleur: AssistantController@arretCaisse
+   - Justification: L'Assistant peut participer à la clôture de caisse
+   - Niveau de risque: ÉLEVÉ
+   - Note: CaisseController@fermeture inclut calcul d'écart et traçabilité
+
+7. **Voir Statistiques** (view_statistics)
+   - Permission: view_statistics
+   - Route: /assistant/statistiques
+   - Contrôleur: AssistantController@statistiques
+   - Justification: L'Assistant peut consulter les statistiques opérationnelles
+   - Niveau de risque: MOYEN
+   - Note: Accès limité à /clients/statistiques, /caisse/etat, /stock/rapports
+
+8. **Mouvements Stock** (view_stock_movements)
+   - Permission: view_stock_movements
+   - Route: /assistant/mouvements-produits
+   - Contrôleur: AssistantController@mouvementsProduits
+   - Justification: Consultation des mouvements est cohérente avec le rôle
+   - Niveau de risque: FAIBLE
+
+9. **Préparation Commande** (prepare_orders)
+   - Permission: prepare_orders
+   - Route: /assistant/preparation-commandes
+   - Contrôleur: AssistantController@preparationCommandes
+   - Justification: Préparation des commandes est une tâche opérationnelle
+   - Niveau de risque: FAIBLE
+
+10. **KPIs Principaux** (4)
+    - CA du jour
+    - Ventes du jour
+    - Alertes stock
+    - Caisse (Ouverte/Fermée)
+    - Justification: Indicateurs essentiels pour le travail quotidien
+
+11. **KPIs Secondaires** (4)
+    - Encaissements du jour
+    - Tickets annulés du jour
+    - Clients actifs
+    - Commandes en attente
+    - Justification: Indicateurs opérationnels utiles
+
+========================================
+C. FONCTIONNALITÉS À SUPPRIMER DU DASHBOARD
+========================================
+
+Aucune fonctionnalité à supprimer du dashboard.
+
+Toutes les actions actuelles sont cohérentes avec le rôle Assistant et le travail quotidien d'une pharmacie.
+
+========================================
+D. FONCTIONNALITÉS À AJOUTER
+========================================
+
+Aucune fonctionnalité à ajouter.
+
+Le dashboard actuel couvre déjà tous les besoins opérationnels du rôle Assistant:
+- Gestion des clients
+- Vente
+- Annulation (avec traçabilité)
+- Remises (avec plafond)
+- Caisse
+- Statistiques opérationnelles
+- Stock
+- Commandes
+
+========================================
+E. PERMISSIONS À MODIFIER
+========================================
+
+Aucune permission à modifier.
+
+Les 9 permissions actuelles sont appropriées:
+- create_client
+- edit_client
+- make_sale
+- cancel_ticket
+- apply_discount
+- close_cash_register
+- view_statistics
+- view_stock_movements
+- prepare_orders
+
+Optionnel: Supprimer les 7 permissions suivi_client.* si elles ne sont pas utilisées par d'autres modules.
+
+========================================
+F. MODIFICATIONS SQL NÉCESSAIRES
+========================================
+
+Aucune modification SQL nécessaire.
+
+Toutes les tables utilisées existent et sont correctement structurées:
+- ventes: EXISTE
+- clients: EXISTE
+- produits: EXISTE
+- stock: EXISTE
+- supplier_orders: EXISTE
+- supplier_order_items: EXISTE
+- commandes: EXISTE
+- commande_items: EXISTE
+- fournisseurs: EXISTE
+- caisse_sessions: EXISTE
+- mouvements_caisse: EXISTE
+- utilisateurs: EXISTE
+- mouvements_stock: EXISTE
+- audit_logs: EXISTE
+
+========================================
+G. MODIFICATIONS UI NÉCESSAIRES
+========================================
+
+Aucune modification UI nécessaire.
+
+L'interface actuelle est:
+- Professionnelle
+- Sobre
+- Responsive
+- Cohérente avec le reste de l'ERP
+- Bien organisée avec:
+  - En-tête avec informations utilisateur
+  - KPIs principaux (4)
+  - Section Résumé de la journée (4 KPIs secondaires)
+  - Actions rapides (9 actions)
+  - Tables avec recherche et tri
+
+Optionnel: Simplifier le sous-menu Suivi Client si ce module n'est pas spécifique au rôle Assistant.
+
+========================================
+H. TESTS À EFFECTUER
+========================================
+
+### Test 1: Accès au dashboard
+- Un utilisateur ASSISTANT peut accéder à son dashboard
+- Route: /assistant/dashboard
+- Attendu: Accès autorisé
+
+### Test 2: Accès refusé aux autres dashboards
+- Un utilisateur ASSISTANT ne peut pas accéder aux dashboards d'autres rôles
+- Routes: /admin/dashboard, /commande/dashboard, etc.
+- Attendu: Accès refusé ou redirection
+
+### Test 3: Données financières réservées
+- L'Assistant ne peut pas accéder aux données financières réservées
+- Vérifier: solde_caisse n'est pas affiché
+- Attendu: Donnée non visible
+
+### Test 4: Actions autorisées
+- Les 9 actions autorisées fonctionnent correctement
+- Permissions: create_client, edit_client, make_sale, cancel_ticket, apply_discount, close_cash_register, view_statistics, view_stock_movements, prepare_orders
+- Attendu: Toutes les actions accessibles
+
+### Test 5: Actions interdites
+- Les actions sans permission sont bloquées côté serveur
+- Attendu: Erreur 403 ou redirection
+
+### Test 6: KPIs cohérents
+- Les KPIs retournent des données cohérentes
+- Vérifier: ventes_jour, ca_jour, montant_encaisse, tickets_annules, clients_actifs, produits_alerte, commandes_attente, caisse_ouverte
+- Attendu: Données cohérentes avec la base
+
+### Test 7: Données supprimées logiquement
+- Les données supprimées logiquement ne sont pas affichées
+- Filtres: deleted_at IS NULL, statut_vente != 'ANNULEE'
+- Attendu: Données supprimées non visibles
+
+### Test 8: Permissions correspond aux actions
+- Les permissions correspondent aux actions affichées
+- Attendu: Cohérence totale
+
+### Test 9: Annulation Ticket
+- L'Assistant peut annuler un ticket avec motif obligatoire
+- Vérifier: motif obligatoire, traçabilité, mise à jour stock
+- Attendu: Annulation fonctionnelle avec audit
+
+### Test 10: Remises
+- L'Assistant peut appliquer des remises dans la limite de 15%
+- Vérifier: plafond de 15%, validation par DiscountLimitService
+- Attendu: Remises limitées à 15%
+
+### Test 11: Arrêt Caisse
+- L'Assistant peut participer à la clôture de caisse
+- Vérifier: calcul d'écart, traçabilité
+- Attendu: Clôture fonctionnelle avec audit
+
+### Test 12: Statistiques
+- Les statistiques accessibles ne révèlent pas d'informations réservées
+- Routes: /clients/statistiques, /caisse/etat, /stock/rapports
+- Attendu: Statistiques opérationnelles uniquement
+
+========================================
+PÉRIMÈTRE DU RÔLE ASSISTANT
+========================================
+
+### A. AUTORISÉ
+- Créer et modifier des clients
+- Effectuer des ventes
+- Annuler des tickets (avec motif obligatoire et traçabilité)
+- Appliquer des remises (limitées à 15%)
+- Participer à la clôture de caisse
+- Consulter les statistiques opérationnelles
+- Consulter les mouvements de stock
+- Préparer les commandes
+
+### B. CONSULTATION UNIQUEMENT
+- État de la caisse (sans solde global)
+- Disponibilité du stock
+- Historique des mouvements de stock
+- Statistiques clients
+- Rapports stock
+
+### C. INTERDIT
+- Accès aux données financières réservées (solde global, bénéfice, marge, etc.)
+- Modification des paramètres système
+- Gestion des utilisateurs
+- Validation de commandes fournisseurs (réservé au Chargé de commande)
+- Accès aux données comptables
+
+### D. À VALIDER
+- Annulation Ticket: Le niveau d'autorisation actuel (direct) est-il approprié?
+- Arrêt Caisse: L'Assistant peut-il réellement clôturer une caisse ou seulement participer?
+- Statistiques: Les statistiques accessibles révèlent-elles des informations réservées?
+
+========================================
+CONCLUSION DE L'AUDIT
+========================================
+
+Le Dashboard Assistant est actuellement:
+
+**POINTS FORTS:**
+1. Système de permissions fonctionnel et correctement implémenté
+2. Actions cohérentes avec le rôle Assistant et le travail quotidien
+3. KPIs pertinents et bien organisés
+4. Interface professionnelle et sobre
+5. Sécurité appropriée (traçabilité, audit, validation)
+6. Plafonds de remise correctement définis (15% pour Assistant)
+7. Données sensibles (solde_caisse) supprimées du dashboard
+
+**POINTS À VALIDER:**
+1. Annulation Ticket: Le niveau d'autorisation direct est-il approprié ou faut-il une validation supérieure?
+2. Arrêt Caisse: L'Assistant peut-il réellement clôturer une caisse ou seulement participer?
+3. Statistiques: Les statistiques accessibles révèlent-elles des informations réservées?
+
+**POINTS AMÉLIORABLES (OPTIONNEL):**
+1. Simplifier le sous-menu Suivi Client si ce module n'est pas spécifique au rôle Assistant
+2. Supprimer les 7 permissions suivi_client.* si elles ne sont pas utilisées par d'autres modules
+
+**RECOMMANDATION GLOBALE:**
+Le Dashboard Assistant est fonctionnellement cohérent et ne nécessite pas de modifications majeures. Les points à valider sont des décisions métier qui dépendent des règles de gestion de la pharmacie.
+
+Avant toute modification, il est recommandé de:
+1. Valider avec l'utilisateur le niveau d'autorisation pour l'annulation de tickets
+2. Valider avec l'utilisateur le niveau d'autorisation pour la clôture de caisse
+3. Vérifier le contenu des statistiques accessibles
+4. Décider si le module Suivi Client est spécifique au rôle Assistant

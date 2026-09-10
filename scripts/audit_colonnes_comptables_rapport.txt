@@ -1,0 +1,136 @@
+=== ÉTAPE 3 - RAPPORT COLONNES COMPTABLES ===
+
+Comparaison entre:
+- Présence en base MySQL (audit_schema_reel.php)
+- Utilisation dans le code PHP (audit_colonnes_comptables.php)
+- Présence dans schema.sql
+
+================================================================================
+TABLE: ventes
+================================================================================
+
+Colonne      | Base MySQL | Code PHP | Schema.sql | Action requise
+-------------|------------|----------|------------|---------------
+montant_ht   | OUI        | OUI      | NON        | Ajouter dans schema.sql
+montant_tva  | OUI        | OUI      | NON        | Ajouter dans schema.sql
+ecriture_id  | OUI        | OUI      | NON        | Ajouter dans schema.sql
+
+================================================================================
+TABLE: commandes
+================================================================================
+
+Colonne      | Base MySQL | Code PHP | Schema.sql | Action requise
+-------------|------------|----------|------------|---------------
+montant_ht   | NON        | OUI      | NON        | CRITIQUE: utilisée mais absente de la base
+montant_tva  | NON        | OUI      | NON        | CRITIQUE: utilisée mais absente de la base
+ecriture_id  | OUI        | OUI      | NON        | Ajouter dans schema.sql
+
+================================================================================
+TABLE: mouvements_caisse
+================================================================================
+
+Colonne      | Base MySQL | Code PHP | Schema.sql | Action requise
+-------------|------------|----------|------------|---------------
+ecriture_id  | OUI        | OUI      | NON        | Ajouter dans schema.sql
+vente_id     | NON        | OUI      | NON        | CRITIQUE: utilisée mais absente de la base
+client_id    | NON        | OUI      | NON        | CRITIQUE: utilisée mais absente de la base
+fournisseur_id| NON       | OUI      | NON        | CRITIQUE: utilisée mais absente de la base
+type_depense | NON        | OUI      | NON        | CRITIQUE: utilisée mais absente de la base
+supprime     | OUI        | OUI      | NON        | Ajouter dans schema.sql
+
+================================================================================
+TABLE: caisse_sessions
+================================================================================
+
+Colonne         | Base MySQL | Code PHP | Schema.sql | Action requise
+----------------|------------|----------|------------|---------------
+montant_ventes  | OUI        | OUI      | OUI        | OK
+montant_theorique| OUI       | OUI      | OUI        | OK
+ecart           | OUI        | OUI      | OUI        | OK
+
+================================================================================
+TABLE: clients
+================================================================================
+
+Colonne      | Base MySQL | Code PHP | Schema.sql | Action requise
+-------------|------------|----------|------------|---------------
+solde_credit | OUI        | OUI      | OUI        | OK
+matricule    | OUI        | OUI      | NON        | Ajouter dans schema.sql
+
+================================================================================
+TABLE: stock
+================================================================================
+
+Colonne        | Base MySQL | Code PHP | Schema.sql | Action requise
+---------------|------------|----------|------------|---------------
+date_peremption| NON        | OUI      | NON        | CRITIQUE: utilisée mais absente de la base
+
+================================================================================
+RÉSUMÉ DES ACTIONS REQUISES
+================================================================================
+
+URGENT - Colonnes utilisées par le code mais ABSENTES de la base MySQL:
+1. commandes.montant_ht
+2. commandes.montant_tva
+3. mouvements_caisse.vente_id
+4. mouvements_caisse.client_id
+5. mouvements_caisse.fournisseur_id
+6. mouvements_caisse.type_depense
+7. stock.date_peremption
+
+MOYEN - Colonnes présentes en base mais ABSENTES de schema.sql:
+1. ventes.montant_ht
+2. ventes.montant_tva
+3. ventes.ecriture_id
+4. commandes.ecriture_id
+5. mouvements_caisse.ecriture_id
+6. mouvements_caisse.supprime
+7. clients.matricule
+
+================================================================================
+ANALYSE DES FICHIERS UTILISANT CES COLONNES
+================================================================================
+
+commandes.montant_ht et montant_tva:
+- ChargeCommandeService.php
+- EcritureComptableService.php
+- FacturationService.php
+- JournalComptableService.php
+- TVAService.php
+- ChargeCommandeController.php
+
+mouvements_caisse.vente_id:
+- Utilisé par 23 fichiers (services et contrôleurs)
+
+mouvements_caisse.client_id:
+- Utilisé par 22 fichiers (services et contrôleurs)
+
+mouvements_caisse.fournisseur_id:
+- Utilisé par 21 fichiers (services et contrôleurs)
+
+mouvements_caisse.type_depense:
+- CaisseService.php
+- EcritureComptableService.php
+- JournalComptableService.php
+
+stock.date_peremption:
+- ExportService.php
+- PeremptionService.php
+- PerformanceService.php
+- StockAvanceService.php
+- ProduitController.php
+- StockController.php
+- VentesController.php
+- Lot.php
+
+================================================================================
+RECOMMANDATION
+================================================================================
+
+1. Pour les colonnes ABSENTES de la base MySQL mais utilisées par le code:
+   - Il faut créer une migration pour ajouter ces colonnes
+   - Attendre validation avant d'exécuter
+
+2. Pour les colonnes présentes en base mais absentes de schema.sql:
+   - Ajouter simplement dans schema.sql lors de l'ÉTAPE 2
+   - Pas de risque car elles existent déjà en production

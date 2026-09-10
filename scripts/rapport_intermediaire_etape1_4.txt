@@ -1,0 +1,156 @@
+=== RAPPORT INTERMÉDIAIRE - ÉTAPES 1 À 4 ===
+Date: 2026-08-14
+
+================================================================================
+ÉTAPE 1 - AUDIT DU SCHÉMA RÉEL
+================================================================================
+
+RÉSUMÉ:
+- Tables dans schema.sql: 25
+- Tables créées par migrations: 15
+- Tables réellement en base: 84
+- Tables utilisées par le code: 35
+
+TABLES PRÉSENTES EN BASE MAIS ABSENTES DE schema.sql (CRITIQUES):
+- supplier_orders (migration: 009_charge_commande_role.sql) - UTILISÉE PAR LE CODE
+- supplier_order_items (migration: 009_charge_commande_role.sql) - UTILISÉE PAR LE CODE
+- receptions (migration: 009_charge_commande_role.sql) - UTILISÉE PAR LE CODE
+- reception_items (migration: 009_charge_commande_role.sql) - UTILISÉE PAR LE CODE
+- stock_entries (migration: 009_charge_commande_role.sql) - UTILISÉE PAR LE CODE
+- fournisseur_reglements (migration: 014_burkina_pharmacy_business_requirements.sql) - UTILISÉE PAR LE CODE
+- client_reglements (migration: 014_burkina_pharmacy_business_requirements.sql) - UTILISÉE PAR LE CODE
+- remises_commerciales (migration: 014_burkina_pharmacy_business_requirements.sql) - UTILISÉE PAR LE CODE
+- journaux_comptables (migration: 007_create_comptabilite_tables.sql) - UTILISÉE PAR LE CODE
+- lignes_ecritures (migration: 013_unify_comptabilite.sql) - UTILISÉE PAR LE CODE
+- exercices_comptables (migration: 007_create_comptabilite_tables.sql) - NON UTILISÉE PAR LE CODE
+- role_discount_limits (migration: 014_burkina_pharmacy_business_requirements.sql) - NON UTILISÉE PAR LE CODE
+
+TABLES DANS schema.sql MAIS ABSENTES DE LA BASE:
+- Aucune (toutes les tables de schema.sql sont présentes en base)
+
+================================================================================
+ÉTAPE 3 - COLONNES COMPTABLES
+================================================================================
+
+CRITIQUE - Colonnes utilisées par le code mais ABSENTES de la base MySQL:
+1. commandes.montant_ht - Utilisée par 6 fichiers
+2. commandes.montant_tva - Utilisée par 4 fichiers
+3. mouvements_caisse.vente_id - Utilisée par 23 fichiers
+4. mouvements_caisse.client_id - Utilisée par 22 fichiers
+5. mouvements_caisse.fournisseur_id - Utilisée par 21 fichiers
+6. mouvements_caisse.type_depense - Utilisée par 3 fichiers
+7. stock.date_peremption - Utilisée par 7 fichiers
+
+MOYEN - Colonnes présentes en base mais ABSENTES de schema.sql:
+1. ventes.montant_ht - Présente en base, utilisée par le code
+2. ventes.montant_tva - Présente en base, utilisée par le code
+3. ventes.ecriture_id - Présente en base, utilisée par le code
+4. commandes.ecriture_id - Présente en base, utilisée par le code
+5. mouvements_caisse.ecriture_id - Présente en base, utilisée par le code
+6. mouvements_caisse.supprime - Présente en base, utilisée par le code
+7. clients.matricule - Présente en base, utilisée par le code
+
+================================================================================
+ÉTAPE 4 - DOUBLE SYSTÈME DE COMMANDES
+================================================================================
+
+ANCIEN SYSTÈME (commandes, commande_items):
+- commandes: Utilisée dans 15 fichiers
+  - Services: AlertesService, AnalyticsStockService, AssistantDashboardService, CommandeService, ComptabiliteService, DashboardService, EcritureComptableService, IntegrationComptableService, RapportsService, StockAvanceService, StockService, SuiviTiersService
+  - Controllers: AdminController
+  - Models: CommandeFournisseur, Stock
+
+- commande_items: Utilisée dans 6 fichiers
+  - Services: AssistantDashboardService, CommandeService, StockAvanceService, StockService
+  - Models: CommandeFournisseur, Stock
+
+NOUVEAU SYSTÈME (supplier_orders, supplier_order_items):
+- supplier_orders: Utilisée dans 5 fichiers
+  - Services: AssistantDashboardService, ChargeCommandeService, CommandeAutomatiqueService, ReglementTiersService
+  - Controllers: AdminController
+
+- supplier_order_items: Utilisée dans 3 fichiers
+  - Services: AssistantDashboardService, ChargeCommandeService, CommandeAutomatiqueService
+
+ANALYSE DES FONCTIONS DE RÉCEPTION:
+- ChargeCommandeService::receiveOrder(): Utilise les DEUX systèmes (ancien et nouveau)
+- CommandeService::recevoirCommande(): Utilise uniquement l'ancien système
+
+ANALYSE DES FONCTIONS COMPTABLES:
+- EcritureComptableService.php: Utilise uniquement l'ancien système (commandes)
+- JournalComptableService.php: N'utilise aucun des deux systèmes
+- ComptabiliteService.php: Utilise uniquement l'ancien système (commandes)
+
+CONCLUSION DOUBLE SYSTÈME:
+- Le module "Chargé de commande" utilise le NOUVEAU système (supplier_orders)
+- Le module comptable utilise l'ANCIEN système (commandes)
+- Il y a une incohérence: les écritures comptables ne sont pas générées pour supplier_orders
+
+================================================================================
+ÉTAPE 5 - FLUX RÉCEPTION → STOCK (ANALYSE PRÉLIMINAIRE)
+================================================================================
+
+Flux actuel (ChargeCommandeService::receiveOrder):
+1. supplier_orders
+   ↓
+2. receptions (création)
+   ↓
+3. reception_items (création pour chaque produit)
+   ↓
+4. supplier_order_items (mise à jour quantite_recue)
+   ↓
+5. addStock() → stock_entries (création)
+   ↓
+6. addStock() → mouvements_stock (création)
+   ↓
+7. addStock() → stock (mise à jour)
+
+Contrôles en place:
+- Vérification: quantite_recue <= (quantite_commandee - quantite_recue) (ligne 278)
+- Calcul: stock_avant + quantite_recue = stock_apres (via insertStockEntry)
+- Détection d'écart: ecart = quantite_attendue - quantite_recue (ligne 299)
+- Statut: RECEPTION_COMPLETE ou RECEPTION_PARTIELLE selon isOrderFullyReceived()
+
+Le flux semble correct et cohérent.
+
+================================================================================
+RECOMMANDATIONS IMMÉDIATES (ÉTAPE 10)
+================================================================================
+
+1. Synchroniser schema.sql avec les tables réellement utilisées:
+   - Ajouter supplier_orders et supplier_order_items
+   - Ajouter receptions et reception_items
+   - Ajouter stock_entries
+   - Ajouter fournisseur_reglements
+   - Ajouter client_reglements
+   - Ajouter remises_commerciales
+   - Ajouter journaux_comptables
+   - Ajouter lignes_ecritures
+   - Ajouter les colonnes comptables présentes en base
+
+2. NE PAS ajouter les colonnes manquantes dans la base MySQL pour l'instant:
+   - Attendre validation de l'utilisateur pour les colonnes critiques
+   - Ces colonnes sont utilisées par le code mais absentes de la base
+   - Risque d'erreurs d'exécution si elles ne sont pas ajoutées
+
+================================================================================
+À VALIDER PAR L'UTILISATEUR
+================================================================================
+
+1. Colonnes à ajouter dans MySQL (migration requise):
+   - commandes.montant_ht
+   - commandes.montant_tva
+   - mouvements_caisse.vente_id
+   - mouvements_caisse.client_id
+   - mouvements_caisse.fournisseur_id
+   - mouvements_caisse.type_depense
+   - stock.date_peremption
+
+2. Double système de commandes:
+   - Faut-il migrer supplier_orders vers commandes ?
+   - Ou faut-il ajouter le support comptable à supplier_orders ?
+   - Ou faut-il maintenir les deux systèmes séparés ?
+
+3. Intégration comptable des réceptions:
+   - Actuellement, les réceptions ne génèrent pas d'écritures comptables
+   - Faut-il implémenter cette fonctionnalité ?

@@ -1,0 +1,57 @@
+# Configuration Apache pour le routage MVC
+
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Options pour le routage propre
+Options -MultiViews
+Options +FollowSymLinks
+
+# Base path si nécessaire
+# RewriteBase /
+
+# Conditions pour ne pas réécrire les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-l
+
+# Réécrire toutes les URLs vers index.php en préservant les paramètres
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Forcer le trailing slash pour les routes (optionnel)
+# RewriteCond %{REQUEST_METHOD} GET
+# RewriteRule ^(.+[^/])$ /$1/ [R=301,L]
+
+# Sécurité : cacher les fichiers sensibles
+<Files ".env">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</Files>
+
+<Files "*.log">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</Files>
+
+# Headers de sécurité
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# PHP Settings
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_value error_log /var/log/php_errors.log
+</IfModule>
